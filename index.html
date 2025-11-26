@@ -168,6 +168,20 @@
         return source; // T3-3の停止ロジックのためにノードを返す
     }
 
+        // T3-3: 停止ロジックの実装 (ここを追加)
+    function stopSample(index) {
+        // index は文字列として渡される可能性があるので、そのまま playingNodes のキーとして使用
+        const sourceNode = playingNodes[index];
+        
+        // 再生中のノードが存在するか確認
+        if (sourceNode) {
+            // Web Audio API の stop() メソッドで即座に音を停止
+            sourceNode.stop(0); 
+            // 停止後、追跡リストからノードを削除
+            delete playingNodes[index];
+        }
+    }
+
 // T3-3のために、現在再生中のノードを追跡するためのマップを定義
     const playingNodes = {}; 
 
@@ -203,7 +217,20 @@
             // T3-3の準備: クリックを離したときの停止ロジック（次タスクで詳細実装）
             pad.addEventListener('mouseup', () => {
                 pad.classList.remove('active');
-                // T3-3: 停止ロジックは次のタスクで実装します
+                
+            // T3-3: クリックを離したときの停止ロジックを実装
+            pad.addEventListener('mouseup', () => {
+                pad.classList.remove('active');
+                stopSample(sampleId); // ★ T3-3の呼び出し ★
+            });
+            
+            // T3-3: マウスがパッドの外で離された場合にも対応（安全のため）
+            pad.addEventListener('mouseleave', () => {
+                if (pad.classList.contains('active')) {
+                    pad.classList.remove('active');
+                    stopSample(sampleId); // ★ T3-3の呼び出し ★
+                }
+            });
             });
         });
 
