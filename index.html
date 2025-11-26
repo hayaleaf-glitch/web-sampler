@@ -133,6 +133,35 @@
         // プリロードが完了したら、ボタンを押せるようにUIを更新するなど（オプション）
         document.getElementById('sampler-container').style.opacity = 1;
     }
+
+        // ★ 修正と追加が必要な部分 ★
+    window.addEventListener('load', () => {
+        // 全パッド要素を取得
+        const pads = document.querySelectorAll('.pad');
+        
+        // 初回フラグ
+        let isInitialized = false;
+
+        // すべてのパッドにイベントリスナーを追加
+        pads.forEach(pad => {
+            pad.addEventListener('mousedown', () => {
+                if (!isInitialized) {
+                    initAudioContext(); // T2-1: AudioContext を開始
+                    // initAudioContext内で preloadAllSamples() が呼ばれるため、プリロードも開始される
+                    isInitialized = true;
+                }
+                // (T3-2: 再生ロジックはここに実装されます)
+            });
+        });
+
+        // プリロード中であることを示すため、初期状態ではUIを暗く/半透明にしておく
+        document.getElementById('sampler-container').style.opacity = 0.5;
+        
+        // T2-2のコードの最後の行は削除（またはコメントアウト）します:
+        // document.getElementById('sampler-container').style.opacity = 1;
+        // なぜなら、初期化後に実行されるからです。
+    });
+
         
     </script>
 </body>
