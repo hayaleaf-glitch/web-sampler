@@ -72,6 +72,11 @@
     <script>
         // T2-1: AudioContext の初期化
         let audioContext;
+        // T2-2: プリロードした音声データを格納する配列（16個）
+    const audioBuffers = new Array(16);
+    // T2-2: T1-2で取得した、MP3ファイルへのベースURL
+    // [あなたのユーザー名]と[リポジトリ名]を置き換えてください！
+    const BASE_URL = "https://hayaleaf-glitch.github.io/web-sampler/";
 
         function initAudioContext() {
             // ブラウザの互換性を考慮した AudioContext の作成
@@ -88,6 +93,46 @@
         // ユーザーの操作をきっかけにコンテキストを初期化することが重要
         // サンプラー起動時に一度だけ呼び出します。
         // initAudioContext(); // ユーザー操作なしでは実行しない
+
+        // 個別の音声ファイルを読み込み、AudioBufferにデコードする関数
+    async function loadSample(index) {
+        const fileName = `sample${index + 1}.mp3`; // sample1.mp3, sample2.mp3...
+        const url = BASE_URL + fileName;
+
+        try {
+            // 1. ネットワークからファイルをバイナリデータとして取得
+            const response = await fetch(url);
+            const arrayBuffer = await response.arrayBuffer();
+
+            // 2. AudioContextを使ってAudioBufferにデコード（低遅延の鍵）
+            const audioBuffer = await audioContext.decodeAudioData(arrayBuffer);
+            
+            // 3. 配列に格納
+            audioBuffers[index] = audioBuffer;
+            console.log(`Sample ${index + 1} (${fileName}) のプリロードが完了しました。`);
+
+        } catch (error) {
+            console.error(`Sample ${index + 1} の読み込みエラー:`, error);
+        }
+    }
+
+        // 全てのサンプルを並行してプリロードする関数
+    async function preloadAllSamples() {
+        console.log("すべてのサンプルのプリロードを開始します...");
+        const promises = [];
+        
+        for (let i = 0; i < 16; i++) {
+            // 16個の読み込み処理を並列で実行
+            promises.push(loadSample(i));
+        }
+
+        // 全てのプリロードが完了するまで待機
+        await Promise.all(promises);
+        console.log("すべてのサンプルのプリロードが完了しました！");
+        
+        // プリロードが完了したら、ボタンを押せるようにUIを更新するなど（オプション）
+        document.getElementById('sampler-container').style.opacity = 1;
+    }
         
     </script>
 </body>
