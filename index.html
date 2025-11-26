@@ -168,6 +168,35 @@
         return source; // T3-3の停止ロジックのためにノードを返す
     }
 
+
+        // T4-1: すべての再生ロジックを統括する関数
+    function triggerSample(sampleId) {
+        // 1. 古いノードがあれば停止
+        if (playingNodes[sampleId]) {
+        stopSample(sampleId);
+        }
+
+        // 2. 初回起動チェック（念のため）
+        if (!audioContext) { 
+        initAudioContext();
+        // isInitialized の状態はここでは触らず、ロード時に任せる
+        }
+
+        // 3. 再生処理
+        const sourceNode = playSample(sampleId); 
+
+        // 4. 新しいノードを記録
+        if (sourceNode) {
+        playingNodes[sampleId] = sourceNode;
+        }
+        }
+
+    // T4-1: 停止処理を統括する関数
+    function releaseSample(sampleId) {
+        stopSample(sampleId);
+        }
+        
+        
         // T3-3: 停止ロジックの実装 (ここを追加)
     function stopSample(index) {
         // index は文字列として渡される可能性があるので、そのまま playingNodes のキーとして使用
