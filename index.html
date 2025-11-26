@@ -185,7 +185,7 @@
 // T3-3のために、現在再生中のノードを追跡するためのマップを定義
     const playingNodes = {}; 
 
-    window.addEventListener('load', () => {
+window.addEventListener('load', () => {
         const pads = document.querySelectorAll('.pad');
         let isInitialized = false;
 
@@ -193,6 +193,7 @@
             const sampleId = pad.dataset.id;
             const key = pad.dataset.key; // キーボード入力用 (T3-3で使う)
 
+            // 1. 再生ロジック (mousedown)
             pad.addEventListener('mousedown', () => {
                 // 1. 初回起動チェック
                 if (!isInitialized) {
