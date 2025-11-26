@@ -234,7 +234,71 @@ window.addEventListener('load', () => {
     });
 
 
+    // キーボード入力の状態を追跡するセット (キーの押しっぱなしによる連続発火を防ぐため)
+const pressedKeys = new Set();
 
+// T4: キーボード押下時の再生ロジック
+window.addEventListener('keydown', (event) => {
+    // shift, ctrl, altなどの修飾キーは無視
+    if (event.metaKey || event.ctrlKey || event.altKey) return; 
+
+    const key = event.key.toLowerCase();
+    
+    // キーが既に押されている場合は何もしない (キーリピート防止)
+    if (pressedKeys.has(key)) return;
+    pressedKeys.add(key);
+
+    // 1. 対応するパッド要素を見つける
+    const pad = document.querySelector(`.pad[data-key="${key}"]`);
+    if (!pad) return; // 対応するパッドがなければ何もしない
+    
+    // 予期せぬスクロールなどのブラウザデフォルト動作を抑制
+    event.preventDefault(); 
+
+    const sampleId = pad.dataset.id;
+
+    // 2. パッドの視覚的フィードバック
+    pad.classList.add('active');
+
+    // 3. 再生ロジックの実行 (マウスと同じ関数を使用)
+    // 既に再生中の古いノードがあれば停止してから再生 (キーボードでも必要)
+    if (playingNodes[sampleId]) {
+        stopSample(sampleId);
+    }
+
+    // 初回起動チェックはマウス操作ですでに実行済みなので不要ですが、念のため初回起動を補助
+    if (!audioContext) { 
+        initAudioContext();
+        isInitialized = true; // initAudioContextの外でisInitializedを更新できるように注意
+    }
+    
+    const sourceNode = playSample(sampleId); 
+
+    // 4. 再生ノードを記録
+    if (sourceNode) {
+        playingNodes[sampleId] = sourceNode;
+    }
+});
+
+// T4: キーボード解放時の停止ロジック
+window.addEventListener('keyup', (event) => {
+    const key = event.key.toLowerCase();
+
+    // 追跡リストからキーを削除
+    pressedKeys.delete(key);
+
+    // 1. 対応するパッド要素を見つける
+    const pad = document.querySelector(`.pad[data-key="${key}"]`);
+    if (!pad) return; // 対応するパッドがなければ何もしない
+
+    const sampleId = pad.dataset.id;
+
+    // 2. パッドの視覚的フィードバックを解除
+    pad.classList.remove('active');
+
+    // 3. 停止ロジックの実行 (マウスと同じ関数を使用)
+    stopSample(sampleId);
+});
         
 
         
