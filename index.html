@@ -219,40 +219,29 @@ window.addEventListener('load', () => {
         let isInitialized = false;
 
         pads.forEach(pad => {
-            const sampleId = pad.dataset.id;
-            const key = pad.dataset.key; // キーボード入力用 (T3-3で使う)
+            const sampleId = pad.dataset.id;
+            const key = pad.dataset.key;
 
             // 1. 再生ロジック (mousedown)
             pad.addEventListener('mousedown', () => {
-                // 1. 初回起動チェック
-                if (!isInitialized) {
-                    initAudioContext(); // AudioContext & プリロード開始
-                    isInitialized = true;
-                }
-                
-                // 2. パッドをアクティブにし、再生ロジックを実行
+                // UIフィードバック
                 pad.classList.add('active');
                 
-                // T3-2: 再生ロジックの呼び出し
-                const sourceNode = playSample(sampleId); 
-
-                // T3-3の準備: 再生中のノードを記録
-                if (sourceNode) {
-                    playingNodes[sampleId] = sourceNode;
-                }
+                // T4-1: 統合関数を呼び出す
+                triggerSample(sampleId);
             });
             
             // 2. 停止ロジック (mouseup)
             pad.addEventListener('mouseup', () => {
                 pad.classList.remove('active');
-                stopSample(sampleId);
+                releaseSample(sampleId); // T4-1: 統合関数を呼び出す
             });
             
             // 3. 停止ロジック (mouseleave)
             pad.addEventListener('mouseleave', () => {
                 if (pad.classList.contains('active')) {
                     pad.classList.remove('active');
-                    stopSample(sampleId);
+                    releaseSample(sampleId); // T4-1: 統合関数を呼び出す
                 }
             });
         });
@@ -309,24 +298,45 @@ window.addEventListener('keydown', (event) => {
     }
 });
 
+// T4: キーボード押下時の再生ロジック
+window.addEventListener('keydown', (event) => {
+    if (event.metaKey || event.ctrlKey || event.altKey) return; 
+
+    const key = event.key.toLowerCase();
+    const pad = document.querySelector(`.pad[data-key="${key}"]`);
+    if (!pad) return;
+
+    event.preventDefault(); 
+    
+    // キーが既に押されている場合は再生ロジックのみスキップ
+    if (pressedKeys.has(key)) return;
+    pressedKeys.add(key);
+    
+    const sampleId = pad.dataset.id;
+    
+    // UIフィードバック
+    pad.classList.add('active');
+    
+    // T4-1: 統合関数を呼び出す
+    triggerSample(sampleId); 
+});
+
 // T4: キーボード解放時の停止ロジック
 window.addEventListener('keyup', (event) => {
     const key = event.key.toLowerCase();
+    const pad = document.querySelector(`.pad[data-key="${key}"]`);
+    if (!pad) return;
 
     // 追跡リストからキーを削除
     pressedKeys.delete(key);
 
-    // 1. 対応するパッド要素を見つける
-    const pad = document.querySelector(`.pad[data-key="${key}"]`);
-    if (!pad) return; // 対応するパッドがなければ何もしない
-
     const sampleId = pad.dataset.id;
 
-    // 2. パッドの視覚的フィードバックを解除
+    // UIフィードバックを解除
     pad.classList.remove('active');
 
-    // 3. 停止ロジックの実行 (マウスと同じ関数を使用)
-    stopSample(sampleId);
+    // T4-1: 統合関数を呼び出す
+    releaseSample(sampleId);
 });
         
 
