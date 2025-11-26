@@ -134,33 +134,75 @@
         document.getElementById('sampler-container').style.opacity = 1;
     }
 
-        // ★ 修正と追加が必要な部分 ★
-    window.addEventListener('load', () => {
-        // 全パッド要素を取得
-        const pads = document.querySelectorAll('.pad');
+        function playSample(index) {
+        // indexは文字列として渡される可能性があるので、整数に変換
+        const sampleIndex = parseInt(index, 10);
         
-        // 初回フラグ
+        // 1. AudioContextが初期化され、AudioBufferが読み込まれているかチェック
+        if (!audioContext || !audioBuffers[sampleIndex]) {
+            console.warn(`Sample ${sampleIndex} がまだ読み込まれていないか、AudioContextが未初期化です。`);
+            return null; // 再生失敗
+        }
+        
+        // 2. ★低遅延の鍵★: 再生するたびに新しいノードを作成する
+        const source = audioContext.createBufferSource();
+        source.buffer = audioBuffers[sampleIndex]; // プリロードされた音源をセット
+        
+        // 3. AudioContextの出力先に接続 (音がスピーカーに届くようにする)
+        source.connect(audioContext.destination);
+        
+        // 4. 再生開始！
+        source.start(0); // 可能な限り即座に再生を開始
+        
+        return source; // T3-3の停止ロジックのためにノードを返す
+    }
+
+// T3-3のために、現在再生中のノードを追跡するためのマップを定義
+    const playingNodes = {}; 
+
+    window.addEventListener('load', () => {
+        const pads = document.querySelectorAll('.pad');
         let isInitialized = false;
 
-        // すべてのパッドにイベントリスナーを追加
         pads.forEach(pad => {
+            const sampleId = pad.dataset.id;
+            const key = pad.dataset.key; // キーボード入力用 (T3-3で使う)
+
             pad.addEventListener('mousedown', () => {
+                // 1. 初回起動チェック
                 if (!isInitialized) {
-                    initAudioContext(); // T2-1: AudioContext を開始
-                    // initAudioContext内で preloadAllSamples() が呼ばれるため、プリロードも開始される
+                    initAudioContext(); // AudioContext & プリロード開始
                     isInitialized = true;
                 }
-                // (T3-2: 再生ロジックはここに実装されます)
+                
+                // 2. パッドをアクティブにし、再生ロジックを実行
+                pad.classList.add('active');
+                
+                // 既に再生中の場合は何もしない（ここでは同時再生を許容するため、あえてチェックしない）
+                
+                // T3-2: 再生ロジックの呼び出し
+                const sourceNode = playSample(sampleId); 
+
+                // T3-3の準備: 再生中のノードを記録
+                if (sourceNode) {
+                    playingNodes[sampleId] = sourceNode;
+                }
+            });
+            
+            // T3-3の準備: クリックを離したときの停止ロジック（次タスクで詳細実装）
+            pad.addEventListener('mouseup', () => {
+                pad.classList.remove('active');
+                // T3-3: 停止ロジックは次のタスクで実装します
             });
         });
 
         // プリロード中であることを示すため、初期状態ではUIを暗く/半透明にしておく
         document.getElementById('sampler-container').style.opacity = 0.5;
-        
-        // T2-2のコードの最後の行は削除（またはコメントアウト）します:
-        // document.getElementById('sampler-container').style.opacity = 1;
-        // なぜなら、初期化後に実行されるからです。
     });
+
+
+
+        
 
         
     </script>
