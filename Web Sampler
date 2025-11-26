@@ -2,8 +2,73 @@
 <html>
 <head>
     <title>Web Sampler</title>
+    <style>
+        body {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            margin: 0;
+            background-color: #222;
+        }
+
+        #sampler-container {
+            display: grid;
+            /* 4列x4行のグリッドを作成 */
+            grid-template-columns: repeat(4, 1fr);
+            grid-gap: 10px;
+            width: 500px;
+            padding: 20px;
+            background-color: #333;
+            border-radius: 15px;
+            box-shadow: 0 10px 20px rgba(0, 0, 0, 0.5);
+        }
+
+        .pad {
+            background-color: #e74c3c; /* 初期の色: 赤 */
+            color: white;
+            padding: 25px 0;
+            text-align: center;
+            font-size: 1.5em;
+            font-weight: bold;
+            border-radius: 8px;
+            cursor: pointer;
+            user-select: none; /* テキストが選択されないようにする */
+            transition: transform 0.05s ease-out, background-color 0.05s ease-out;
+            /* T3-2で低遅延の視覚フィードバックに使用 */
+        }
+
+        /* パッドが押されたときの視覚的なフィードバック */
+        .pad.active {
+            background-color: #c0392b; /* 押されたときの色: 濃い赤 */
+            transform: scale(0.95);
+            box-shadow: 0 3px 6px rgba(0, 0, 0, 0.5) inset;
+        }
+    </style>
 </head>
 <body>
+    <div id="sampler-container">
+        <div class="pad" data-key="a" data-id="0">A</div>
+        <div class="pad" data-key="s" data-id="1">S</div>
+        <div class="pad" data-key="d" data-id="2">D</div>
+        <div class="pad" data-key="f" data-id="3">F</div>
+        
+        <div class="pad" data-key="g" data-id="4">G</div>
+        <div class="pad" data-key="h" data-id="5">H</div>
+        <div class="pad" data-key="j" data-id="6">J</div>
+        <div class="pad" data-key="k" data-id="7">K</div>
+        
+        <div class="pad" data-key="l" data-id="8">L</div>
+        <div class="pad" data-key=";" data-id="9">;</div>
+        <div class="pad" data-key="'" data-id="10">'</div>
+        <div class="pad" data-key="z" data-id="11">Z</div>
+        
+        <div class="pad" data-key="x" data-id="12">X</div>
+        <div class="pad" data-key="c" data-id="13">C</div>
+        <div class="pad" data-key="v" data-id="14">V</div>
+        <div class="pad" data-key="b" data-id="15">B</div>
+    </div>
+
     <script>
         // T2-1: AudioContext の初期化
         let audioContext;
