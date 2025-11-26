@@ -191,49 +191,43 @@ window.addEventListener('load', () => {
 
         pads.forEach(pad => {
             const sampleId = pad.dataset.id;
-            const key = pad.dataset.key; // キーボード入力用 (T3-3で使う)
+            const key = pad.dataset.key; // キーボード入力用 (T3-3で使う)
 
-            // 1. 再生ロジック (mousedown)
-            pad.addEventListener('mousedown', () => {
-                // 1. 初回起動チェック
-                if (!isInitialized) {
-                    initAudioContext(); // AudioContext & プリロード開始
-                    isInitialized = true;
-                }
-                
-                // 2. パッドをアクティブにし、再生ロジックを実行
-                pad.classList.add('active');
-                
-                // 既に再生中の場合は何もしない（ここでは同時再生を許容するため、あえてチェックしない）
-                
-                // T3-2: 再生ロジックの呼び出し
-                const sourceNode = playSample(sampleId); 
+            // 1. 再生ロジック (mousedown)
+            pad.addEventListener('mousedown', () => {
+                // 1. 初回起動チェック
+                if (!isInitialized) {
+                    initAudioContext(); // AudioContext & プリロード開始
+                    isInitialized = true;
+                }
+                
+                // 2. パッドをアクティブにし、再生ロジックを実行
+                pad.classList.add('active');
+                
+                // T3-2: 再生ロジックの呼び出し
+                const sourceNode = playSample(sampleId); 
 
-                // T3-3の準備: 再生中のノードを記録
-                if (sourceNode) {
-                    playingNodes[sampleId] = sourceNode;
-                }
-            });
+                // T3-3の準備: 再生中のノードを記録
+                if (sourceNode) {
+                    playingNodes[sampleId] = sourceNode;
+                }
+            });
+            
+            // 2. 停止ロジック (mouseup)
+            pad.addEventListener('mouseup', () => {
+                pad.classList.remove('active');
+                stopSample(sampleId);
+            });
+            
+            // 3. 停止ロジック (mouseleave)
+            pad.addEventListener('mouseleave', () => {
+                if (pad.classList.contains('active')) {
+                    pad.classList.remove('active');
+                    stopSample(sampleId);
+                }
+            });
+        });
             
-            // T3-3の準備: クリックを離したときの停止ロジック（次タスクで詳細実装）
-            pad.addEventListener('mouseup', () => {
-                pad.classList.remove('active');
-                
-            // T3-3: クリックを離したときの停止ロジックを実装
-            pad.addEventListener('mouseup', () => {
-                pad.classList.remove('active');
-                stopSample(sampleId); // ★ T3-3の呼び出し ★
-            });
-            
-            // T3-3: マウスがパッドの外で離された場合にも対応（安全のため）
-            pad.addEventListener('mouseleave', () => {
-                if (pad.classList.contains('active')) {
-                    pad.classList.remove('active');
-                    stopSample(sampleId); // ★ T3-3の呼び出し ★
-                }
-            });
-            });
-        });
 
         // プリロード中であることを示すため、初期状態ではUIを暗く/半透明にしておく
         document.getElementById('sampler-container').style.opacity = 0.5;
