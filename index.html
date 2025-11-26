@@ -215,41 +215,39 @@
     const playingNodes = {}; 
 
 window.addEventListener('load', () => {
-        const pads = document.querySelectorAll('.pad');
-        let isInitialized = false;
+    const pads = document.querySelectorAll('.pad');
+    // isInitialized の定義を削除 (T4-1で triggerSample に統合済みのため)
 
-        pads.forEach(pad => {
-            const sampleId = pad.dataset.id;
-            const key = pad.dataset.key;
+    pads.forEach(pad => {
+        const sampleId = pad.dataset.id;
 
-            // 1. 再生ロジック (mousedown)
-            pad.addEventListener('mousedown', () => {
-                // UIフィードバック
-                pad.classList.add('active');
-                
-                // T4-1: 統合関数を呼び出す
-                triggerSample(sampleId);
-            });
-            
-            // 2. 停止ロジック (mouseup)
-            pad.addEventListener('mouseup', () => {
-                pad.classList.remove('active');
-                releaseSample(sampleId); // T4-1: 統合関数を呼び出す
-            });
-            
-            // 3. 停止ロジック (mouseleave)
-            pad.addEventListener('mouseleave', () => {
-                if (pad.classList.contains('active')) {
-                    pad.classList.remove('active');
-                    releaseSample(sampleId); // T4-1: 統合関数を呼び出す
-                }
-            });
-        });
+        // 1. 再生ロジック (mousedown)
+        pad.addEventListener('mousedown', () => {
+            // UIフィードバック
+            pad.classList.add('active');
             
-
-        // プリロード中であることを示すため、初期状態ではUIを暗く/半透明にしておく
-        document.getElementById('sampler-container').style.opacity = 0.5;
+            // T4-1: 統合関数を呼び出す
+            triggerSample(sampleId);
+        });
+        
+        // 2. 停止ロジック (mouseup)
+        pad.addEventListener('mouseup', () => {
+            pad.classList.remove('active');
+            releaseSample(sampleId); // T4-1: 統合関数を呼び出す
+        });
+        
+        // 3. 停止ロジック (mouseleave)
+        pad.addEventListener('mouseleave', () => {
+            if (pad.classList.contains('active')) {
+                pad.classList.remove('active');
+                releaseSample(sampleId); // T4-1: 統合関数を呼び出す
+            }
+        });
     });
+
+    // プリロード中であることを示すため、初期状態ではUIを暗く/半透明にしておく
+    document.getElementById('sampler-container').style.opacity = 0.5;
+});
 
 
     // キーボード入力の状態を追跡するセット (キーの押しっぱなしによる連続発火を防ぐため)
