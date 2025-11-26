@@ -79,17 +79,19 @@
     const BASE_URL = "https://hayaleaf-glitch.github.io/web-sampler/";
 
         function initAudioContext() {
-            // ブラウザの互換性を考慮した AudioContext の作成
-            try {
-                // Safariなど、ベンダープレフィックスが必要なブラウザへの対応
-                audioContext = new (window.AudioContext || window.webkitAudioContext)();
-                console.log("AudioContext が正常に初期化されました。");
-            } catch (e) {
-                alert('Web Audio API はこのブラウザでは利用できません。');
-                return;
-            }
-        }
+        // ブラウザの互換性を考慮した AudioContext の作成
+        try {
+        audioContext = new (window.AudioContext || window.webkitAudioContext)();
+        console.log("AudioContext が正常に初期化されました。");
+        
+        // ★ T2-2 の実行：コンテキスト初期化後、すぐにプリロードを開始 ★
+        preloadAllSamples(); 
 
+        } catch (e) {
+        alert('Web Audio API はこのブラウザでは利用できません。');
+        return;
+        }
+        }
         // ユーザーの操作をきっかけにコンテキストを初期化することが重要
         // サンプラー起動時に一度だけ呼び出します。
         // initAudioContext(); // ユーザー操作なしでは実行しない
