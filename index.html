@@ -187,6 +187,47 @@
         }  
         }
 
+    // T5-2: 動的なサンプル切り替えロジック
+/**
+ * 指定されたキー（setKey）に基づいて、サンプラーのコンテンツを完全に切り替える
+ * @param {string} setKey - SAMPLER_SETS に定義されたセットのキー（例: 'soundscape-tokyo'）
+ */
+async function changeSamplerSet(setKey) {
+    // 1. 指定されたセットが存在するかチェック
+    if (!SAMPLER_SETS[setKey]) {
+        console.error(`Sampler set "${setKey}" not found. Aborting change.`);
+        return;
+    }
+
+    // 2. AudioContextがまだ初期化されていない場合は初期化（ユーザー操作を兼ねる）
+    if (!audioContext) {
+        initAudioContext(); 
+    }
+    
+    // 3. 全ての再生中の音を停止
+    for (let i = 0; i < 16; i++) {
+        releaseSample(i.toString()); // T4-1で定義した停止関数を利用
+    }
+
+    // 4. UIにロード中であることを通知
+    const samplerContainer = document.getElementById('sampler-container');
+    samplerContainer.style.opacity = 0.3; // 視覚フィードバック（暗くする）
+
+    // 5. 新しいセットキーを設定し、サンプルを再ロード
+    currentSetKey = setKey;
+    console.log(`Switching to Sampler Set: ${SAMPLER_SETS[setKey].name}`);
+    
+    // 既存の preloadAllSamples 関数を利用して、新しいセットのサンプルをロード
+    await preloadAllSamples(); 
+
+    // 6. ロード完了後、UIを更新し、操作可能に戻す
+    
+    // T5-3の準備: ここでパッドのUI（画像やラベル）を更新する処理が入ります。
+    
+    samplerContainer.style.opacity = 1.0; // 操作可能に戻す
+    console.log("Set switch complete. Sampler is ready.");
+}
+
         function playSample(index) {
         // indexは文字列として渡される可能性があるので、整数に変換
         const sampleIndex = parseInt(index, 10);
@@ -352,7 +393,12 @@ window.addEventListener('load', () => {
 
     // プリロード中であることを示すため、初期状態ではUIを暗く/半透明にしておく
     document.getElementById('sampler-container').style.opacity = 0.5;
-});
+
+    // T5-2 テスト呼び出し: 5秒後に別のセットに切り替える
+    setTimeout(() => {
+        changeSamplerSet('soundscape-forest');
+    }, 5000); 
+    });
 
 
     // キーボード入力の状態を追跡するセット (キーの押しっぱなしによる連続発火を防ぐため)
@@ -441,6 +487,8 @@ window.addEventListener('keyup', (event) => {
     // T4-1: 統合関数を呼び出す
     releaseSample(sampleId);
 });
+
+
         
 
         
