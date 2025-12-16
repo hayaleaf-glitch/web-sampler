@@ -128,22 +128,105 @@
             }
 
         // 全てのサンプルを並行してプリロードする関数
+        // T5-1 & T5-2の準備: 現在アクティブなセットのサンプルをロードする関数
+        // 既存の preloadAllSamples 関数全体をこれに置き換えてください。
     async function preloadAllSamples() {
-        console.log("すべてのサンプルのプリロードを開始します...");
-        const promises = [];
+        // 1. 現在のセットデータを取得
+        const currentSetData = SAMPLER_SETS[currentSetKey];
+        if (!currentSetData) {
+        console.error(`Error: Sampler set '${currentSetKey}' not found.`);
+        return;
+    }
+
+        // 2. 既存のAudioBufferをクリア (動的切り替えの準備)
+        // AudioBuffers配列を新しいセットのサイズに合わせて初期化
+        audioBuffers.fill(null); 
+
+        console.log(`サンプラーセット「${currentSetData.name}」のプリロードを開始します...`);
+    
+        // 3. プリロードを開始する
+    　const loadPromises = currentSetData.samples.map(async (sample) => {
+        // T1-2で定義した BASE_URL を使用して完全なURLを構築
+        const url = BASE_URL + sample.url;
         
-        for (let i = 0; i < 16; i++) {
-            // 16個の読み込み処理を並列で実行
-            promises.push(loadSample(i));
+        // URLがない、または空きパッドの場合はスキップ
+        if (!sample.url) {
+            audioBuffers[sample.id] = null;
+            return;
         }
 
-        // 全てのプリロードが完了するまで待機
-        await Promise.all(promises);
-        console.log("すべてのサンプルのプリロードが完了しました！");
+        try {
+            const response = await fetch(url);
+            
+            if (!response.ok) {
+                // T5-1の修正: 404エラーなどを捕捉してエラーを投げる
+                 throw new Error(`HTTPエラー: ${response.status} ${response.statusText}`);
+            }
+
+            const arrayBuffer = await response.arrayBuffer();
+            const audioBuffer = await audioContext.decodeAudioData(arrayBuffer);
+            
+            // IDに基づいて正しいスロットにバッファを格納
+            audioBuffers[sample.id] = audioBuffer;
+        } catch (error) {
+            console.error(`Sample ID ${sample.id} (${url}) の読み込みエラー:`, error);
+            audioBuffers[sample.id] = null; // エラーが発生したスロットは null のままにする
+            // エラーはログに留め、Promise.allを失敗させないように修正
+        }
+        });
+
+     try {
+        await Promise.all(loadPromises);
+        console.log(`すべてのサンプルのプリロードが完了しました！セット: ${currentSetData.name}`);
         
-        // プリロードが完了したら、ボタンを押せるようにUIを更新するなど（オプション）
-        document.getElementById('sampler-container').style.opacity = 1;
+        // プリロードが完了したら、ボタンを押せるようにUIを更新
+        document.getElementById('sampler-container').style.opacity = 1.0;
+      } catch (error) {
+        // ここには到達しないはずですが、念のため
+        console.error("予期せぬエラーが発生しました:", error);
+        }  
+        }
+
+    // T5-2: 動的なサンプル切り替えロジック
+/**
+ * 指定されたキー（setKey）に基づいて、サンプラーのコンテンツを完全に切り替える
+ * @param {string} setKey - SAMPLER_SETS に定義されたセットのキー（例: 'soundscape-tokyo'）
+ */
+async function changeSamplerSet(setKey) {
+    // 1. 指定されたセットが存在するかチェック
+    if (!SAMPLER_SETS[setKey]) {
+        console.error(`Sampler set "${setKey}" not found. Aborting change.`);
+        return;
     }
+
+    // 2. AudioContextがまだ初期化されていない場合は初期化（ユーザー操作を兼ねる）
+    if (!audioContext) {
+        initAudioContext(); 
+    }
+    
+    // 3. 全ての再生中の音を停止
+    for (let i = 0; i < 16; i++) {
+        releaseSample(i.toString()); // T4-1で定義した停止関数を利用
+    }
+
+    // 4. UIにロード中であることを通知
+    const samplerContainer = document.getElementById('sampler-container');
+    samplerContainer.style.opacity = 0.3; // 視覚フィードバック（暗くする）
+
+    // 5. 新しいセットキーを設定し、サンプルを再ロード
+    currentSetKey = setKey;
+    console.log(`Switching to Sampler Set: ${SAMPLER_SETS[setKey].name}`);
+    
+    // 既存の preloadAllSamples 関数を利用して、新しいセットのサンプルをロード
+    await preloadAllSamples(); 
+
+    // 6. ロード完了後、UIを更新し、操作可能に戻す
+    
+    // T5-3の準備: ここでパッドのUI（画像やラベル）を更新する処理が入ります。
+    
+    samplerContainer.style.opacity = 1.0; // 操作可能に戻す
+    console.log("Set switch complete. Sampler is ready.");
+}
 
         function playSample(index) {
         // indexは文字列として渡される可能性があるので、整数に変換
@@ -212,7 +295,70 @@
     }
 
 // T3-3のために、現在再生中のノードを追跡するためのマップを定義
-    const playingNodes = {}; 
+    const playingNodes = {};
+
+// T5-1: 動的コンテンツ構造の定義
+const SAMPLER_SETS = {
+    // まずはテスト用に2つのセットを定義します
+    'soundscape-tokyo': {
+        name: "東京・渋谷駅前",
+        recorder: "Hayaleaf-Glitch",
+        image: "images/tokyo-shibuya.jpg", // 参照する背景画像（まだファイルは存在しません）
+        samples: [
+            // id: 0, 1, 2, 3... と pad ID に対応
+            { id: 0, url: 'sample1.mp3', label: '足音' },
+            { id: 1, url: 'sample2.mp3', label: '電車接近音' },
+            { id: 2, url: 'sample3.mp3', label: '駅の雑踏' },
+            { id: 3, url: 'sample4.mp3', label: 'バイクの排気音' },
+            
+            { id: 4, url: 'sample5.mp3', label: 'カラスの鳴き声' },
+            { id: 5, url: 'sample6.mp3', label: '信号の音' },
+            { id: 6, url: 'sample7.mp3', label: 'アナウンス' },
+            { id: 7, url: 'sample8.mp3', label: 'エスカレーター' },
+            
+            { id: 8, url: 'sample9.mp3', label: '救急車のサイレン' },
+            { id: 9, url: 'sample10.mp3', label: '車のクラクション' },
+            { id: 10, url: 'sample11.mp3', label: '販売員の声' },
+            { id: 11, url: 'sample12.mp3', label: 'カフェのドアベル' },
+            
+            { id: 12, url: 'sample13.mp3', label: '犬の吠え声' },
+            { id: 13, url: 'sample14.mp3', label: '自転車のベル' },
+            { id: 14, url: 'sample15.mp3', label: '雨の音' },
+            { id: 15, url: 'sample16.mp3', label: '（空き）' } // 16個目は空にしておく
+        ]
+    },
+    
+    'soundscape-forest': {
+        name: "長野・霧ヶ峰の森",
+        recorder: "Visitor A",
+        image: "images/nagano-forest.jpg",
+        samples: [
+            // 中身は上記と同様の構造で、ファイル名だけ変える
+            { id: 0, url: 'samplea.mp3', label: '足音' },
+            { id: 1, url: 'sampleb.mp3', label: '電車接近音' },
+            { id: 2, url: 'samplec.mp3', label: '駅の雑踏' },
+            { id: 3, url: 'sampled.mp3', label: 'バイクの排気音' },
+            
+            { id: 4, url: 'samplee.mp3', label: 'カラスの鳴き声' },
+            { id: 5, url: 'samplef.mp3', label: '信号の音' },
+            { id: 6, url: 'sampleg.mp3', label: 'アナウンス' },
+            { id: 7, url: 'sampleh.mp3', label: 'エスカレーター' },
+            
+            { id: 8, url: 'samplei.mp3', label: '救急車のサイレン' },
+            { id: 9, url: 'samplej.mp3', label: '車のクラクション' },
+            { id: 10, url: 'samplek.mp3', label: '販売員の声' },
+            { id: 11, url: 'samplel.mp3', label: 'カフェのドアベル' },
+            
+            { id: 12, url: 'samplem.mp3', label: '犬の吠え声' },
+            { id: 13, url: 'samplen.mp3', label: '自転車のベル' },
+            { id: 14, url: 'sampleo.mp3', label: '雨の音' },
+            { id: 15, url: 'samplep.mp3', label: '（空き）' }
+        ]
+    }
+};
+
+// 現在アクティブなサンプラーセットのキーを定義
+let currentSetKey = 'soundscape-tokyo'; // 初期セットは東京 
 
 window.addEventListener('load', () => {
     const pads = document.querySelectorAll('.pad');
@@ -247,7 +393,12 @@ window.addEventListener('load', () => {
 
     // プリロード中であることを示すため、初期状態ではUIを暗く/半透明にしておく
     document.getElementById('sampler-container').style.opacity = 0.5;
-});
+
+    // T5-2 テスト呼び出し: 5秒後に別のセットに切り替える
+    setTimeout(() => {
+        changeSamplerSet('soundscape-forest');
+    }, 5000); 
+    });
 
 
     // キーボード入力の状態を追跡するセット (キーの押しっぱなしによる連続発火を防ぐため)
@@ -336,6 +487,8 @@ window.addEventListener('keyup', (event) => {
     // T4-1: 統合関数を呼び出す
     releaseSample(sampleId);
 });
+
+
         
 
         
