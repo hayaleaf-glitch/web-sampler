@@ -3,14 +3,19 @@
 <head>
     <title>Web Sampler</title>
     <style>
-        body {
+       body {
             display: flex;
             justify-content: center;
             align-items: center;
             min-height: 100vh;
             margin: 0;
             background-color: #222;
-        }
+            /* T5-4: 背景画像の設定を追加 */
+            background-size: cover;
+            background-position: center;
+            background-repeat: no-repeat;
+            transition: background-image 0.8s ease-in-out; /* ふわっと切り替える */
+        }ckground-color: #222;
 
         #sampler-container {
             display: grid;
@@ -222,10 +227,14 @@ async function changeSamplerSet(setKey) {
 
     // 6. ロード完了後、UIを更新し、操作可能に戻す
 
-    
     // **UI更新ロジック**
     const currentSetData = SAMPLER_SETS[setKey];
     const pads = document.querySelectorAll('.pad');
+
+    if (currentSetData.image) {
+        // 画像がある場合は適用（BASE_URLを忘れずに）
+        document.body.style.backgroundImage = `url('${BASE_URL}${currentSetData.image}')`;
+    }
 
     // 1. 各パッドのラベルを更新
     pads.forEach((pad) => {
@@ -319,7 +328,7 @@ const SAMPLER_SETS = {
     'soundscape-tokyo': {
         name: "東京・渋谷駅前",
         recorder: "Hayaleaf-Glitch",
-        image: "images/tokyo-shibuya.jpg", // 参照する背景画像（まだファイルは存在しません）
+        image: "https://images.unsplash.com/photo-1542051841857-5f90071e7989?w=1000",
         samples: [
             // id: 0, 1, 2, 3... と pad ID に対応
             { id: 0, url: 'sample1.mp3', label: '足音' },
@@ -347,7 +356,7 @@ const SAMPLER_SETS = {
     'soundscape-forest': {
         name: "長野・霧ヶ峰の森",
         recorder: "Visitor A",
-        image: "images/nagano-forest.jpg",
+        image: "https://images.unsplash.com/photo-1441974231531-c6227db76b6e?w=1000",
         samples: [
             // 中身は上記と同様の構造で、ファイル名だけ変える
             { id: 0, url: 'samplea.mp3', label: '足音' },
