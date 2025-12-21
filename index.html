@@ -1,372 +1,474 @@
 <!DOCTYPE html>
-<html>
+<html lang="ja">
 <head>
-    <title>Web Sampler</title>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Solosola | Soundscape Media</title>
+    
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@100;300&display=swap" rel="stylesheet">
+
     <style>
+        /* =========================================
+           Global Design: The Canvas of Silence
+           ========================================= */
+        :root {
+            --bg-color: #111111; /* マットなダークグレー */
+            --text-color: #ffffff;
+            --accent-overlay: rgba(255, 255, 255, 0.4); /* 打鍵時の光 */
+            --transition-speed: 0.6s;
+        }
+
         body {
             display: flex;
+            flex-direction: column;
             justify-content: center;
             align-items: center;
             min-height: 100vh;
             margin: 0;
-            background-color: #222;
-            /* T5-4: 背景画像の設定を追加 */
-            background-size: cover;
-            background-position: center;
-            background-repeat: no-repeat;
-            transition: background-image 0.8s ease-in-out; /* ふわっと切り替える */
+            background-color: var(--bg-color);
+            color: var(--text-color);
+            font-family: 'Helvetica Neue', 'Noto Sans JP', sans-serif;
+            font-weight: 100; /* UltraLight / Thin */
+            overflow: hidden; /* 世界の端（スクロールバー）を隠す */
+            -webkit-font-smoothing: antialiased;
+        }
+
+        /* =========================================
+           Meta Info: The Coordinates of Memory
+           ========================================= */
+        #meta-display {
+            position: absolute;
+            top: 6vmin;
+            left: 6vmin;
+            z-index: 10;
+            pointer-events: none; /* 演奏を邪魔しない */
+            opacity: 0;
+            animation: fadeIn 2s ease-out forwards 0.5s;
+        }
+
+        #place-name {
+            margin: 0;
+            font-size: 1.2rem;
+            letter-spacing: 0.15em;
+            font-weight: 300;
+            text-transform: uppercase;
+        }
+
+        #recorder-name {
+            margin: 5px 0 0 0;
+            font-size: 0.75rem;
+            opacity: 0.6;
+            letter-spacing: 0.05em;
+            font-weight: 100;
+        }
+
+        /* =========================================
+           The Instrument: Fragmented Landscape
+           ========================================= */
+        #sampler-wrapper {
+            /* 常に正方形を維持し、画面に収まる最大のサイズを計算 */
+            width: 85vmin;
+            height: 85vmin;
+            max-width: 600px;
+            max-height: 600px;
+            position: relative;
         }
 
         #sampler-container {
             display: grid;
-            /* 4列x4行のグリッドを作成 */
             grid-template-columns: repeat(4, 1fr);
-            grid-gap: 10px;
-            
-            /* スマホ対応（レスポンシブ）設定 */
-            width: 100%;       /* 基本は親要素いっぱいに */
-            max-width: 500px;  /* PCでは最大500pxまで */
-            padding: 20px;
-            
-            background-color: #333;
-            border-radius: 15px;
-            box-shadow: 0 10px 20px rgba(0, 0, 0, 0.5);
-            box-sizing: border-box; /* パディングを含めた幅計算にする */
+            grid-template-rows: repeat(4, 1fr);
+            gap: 0px; /* 隙間なく配置し、一枚の絵として統合する */
+            width: 100%;
+            height: 100%;
+            transition: opacity var(--transition-speed) ease;
         }
 
         .pad {
-            background-color: #e74c3c; /* 初期の色: 赤 */
-            color: white;
-            padding: 25px 0;
-            text-align: center;
-            font-size: 1.5em;
-            font-weight: bold;
-            border-radius: 8px;
+            position: relative;
+            background-color: #222; /* 画像ロード前の下地 */
+            background-size: 400% 400%; /* 画像を4倍に拡大し、その一部を表示する */
+            background-repeat: no-repeat;
             cursor: pointer;
-            user-select: none; /* テキストが選択されないようにする */
-            transition: transform 0.05s ease-out, background-color 0.05s ease-out;
+            user-select: none;
+            
+            /* 視覚的なフィードバックの準備 */
+            filter: brightness(1.0) grayscale(0.2); 
+            transition: filter 0.05s ease-out;
         }
 
-        /* パッドが押されたときの視覚的なフィードバック */
+        /* 打鍵時のエフェクト: 
+           風景のその一点だけに光が差し込むような表現
+        */
+        .pad::after {
+            content: '';
+            position: absolute;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background-color: var(--text-color);
+            opacity: 0;
+            transition: opacity 0.05s ease-out;
+            pointer-events: none;
+        }
+
         .pad.active {
-            background-color: #c0392b; /* 押されたときの色: 濃い赤 */
-            transform: scale(0.95);
-            box-shadow: 0 3px 6px rgba(0, 0, 0, 0.5) inset;
+            filter: brightness(1.2) grayscale(0);
+            z-index: 1; /* 光った瞬間だけ手前に */
+        }
+
+        .pad.active::after {
+            opacity: 0.15; /* 白いベールを一瞬被せる */
+        }
+
+        /* ラベル（文字）は極力主張させず、風景に溶け込ませる */
+        .pad-label {
+            position: absolute;
+            bottom: 5px;
+            right: 5px;
+            font-size: 0.6rem;
+            opacity: 0.5;
+            font-weight: 100;
+            text-shadow: 0 1px 2px rgba(0,0,0,0.8);
+            pointer-events: none;
+        }
+
+        /* =========================================
+           Menu: The Portal
+           ========================================= */
+        #menu {
+            position: absolute;
+            bottom: 5vmin;
+            display: flex;
+            gap: 30px;
+            z-index: 20;
+        }
+
+        .menu-item {
+            cursor: pointer;
+            font-size: 0.8rem;
+            letter-spacing: 0.2em;
+            opacity: 0.4;
+            transition: all 0.4s ease;
+            position: relative;
+        }
+
+        .menu-item::after {
+            content: '';
+            position: absolute;
+            width: 0%;
+            height: 1px;
+            bottom: -5px;
+            left: 50%;
+            background-color: var(--text-color);
+            transition: all 0.4s ease;
+            transform: translateX(-50%);
+        }
+
+        .menu-item:hover, .menu-item.active {
+            opacity: 1;
+        }
+
+        .menu-item.active::after {
+            width: 100%;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(-10px); }
+            to { opacity: 1; transform: translateY(0); }
         }
     </style>
 </head>
 <body>
-    <div id="sampler-container">
-        <div class="pad" data-key="7" data-id="0">7</div>
-        <div class="pad" data-key="8" data-id="1">8</div>
-        <div class="pad" data-key="9" data-id="2">9</div>
-        <div class="pad" data-key="0" data-id="3">0</div>
-        
-        <div class="pad" data-key="u" data-id="4">U</div>
-        <div class="pad" data-key="i" data-id="5">I</div>
-        <div class="pad" data-key="o" data-id="6">O</div>
-        <div class="pad" data-key="p" data-id="7">P</div>
-        
-        <div class="pad" data-key="j" data-id="8">J</div>
-        <div class="pad" data-key="k" data-id="9">K</div>
-        <div class="pad" data-key="l" data-id="10">L</div>
-        <div class="pad" data-key=";" data-id="11">;</div>
-        
-        <div class="pad" data-key="m" data-id="12">M</div>
-        <div class="pad" data-key="," data-id="13">,</div>
-        <div class="pad" data-key="." data-id="14">.</div>
-        <div class="pad" data-key="/" data-id="15">/</div>
+
+    <div id="meta-display">
+        <h1 id="place-name">SOLOSOLA</h1>
+        <p id="recorder-name">Soundscape Media</p>
+    </div>
+
+    <div id="sampler-wrapper">
+        <div id="sampler-container">
+            </div>
+    </div>
+
+    <div id="menu">
+        <div class="menu-item active" onclick="changeSamplerSet('soundscape-tokyo')">TOKYO</div>
+        <div class="menu-item" onclick="changeSamplerSet('soundscape-forest')">FOREST</div>
     </div>
 
     <script>
-    // ==========================================
-    // 1. 初期設定とデータ定義
-    // ==========================================
-    
-    let audioContext;
-    const audioBuffers = new Array(16);
-    // [あなたのユーザー名]と[リポジトリ名]に合わせて変更してください
-    const BASE_URL = "https://hayaleaf-glitch.github.io/web-sampler/";
+    /*
+     * Soundscape Media "Solosola"
+     * Code written with respect for the artist's vision.
+     * * Core Concept: 
+     * The separation of an image into 16 fragments, reconnected by sound.
+     */
 
-    // T5-1: 動的コンテンツ構造の定義
+    // ==========================================
+    // 1. Data Structure (Abstracted for Future JSON)
+    // ==========================================
+    const BASE_URL = "https://hayaleaf-glitch.github.io/web-sampler/";
+    
     const SAMPLER_SETS = {
         'soundscape-tokyo': {
             name: "東京・渋谷駅前",
-            recorder: "Hayaleaf-Glitch",
-            // テスト用画像URL
-            image: "https://images.unsplash.com/photo-1542051841857-5f90071e7989?w=1000",
+            recorder: "Recorded by Solosola",
+            // 都会の喧騒、コンクリートの質感
+            image: "https://images.unsplash.com/photo-1542051841857-5f90071e7989?w=1200", 
             samples: [
-                { id: 0, url: 'sample1.mp3', label: '足音' },
-                { id: 1, url: 'sample2.mp3', label: '電車接近音' },
-                { id: 2, url: 'sample3.mp3', label: '駅の雑踏' },
-                { id: 3, url: 'sample4.mp3', label: 'バイクの排気音' },
-                
-                { id: 4, url: 'sample5.mp3', label: 'カラスの鳴き声' },
-                { id: 5, url: 'sample6.mp3', label: '信号の音' },
-                { id: 6, url: 'sample7.mp3', label: 'アナウンス' },
-                { id: 7, url: 'sample8.mp3', label: 'エスカレーター' },
-                
-                { id: 8, url: 'sample9.mp3', label: '救急車のサイレン' },
-                { id: 9, url: 'sample10.mp3', label: '車のクラクション' },
-                { id: 10, url: 'sample11.mp3', label: '販売員の声' },
-                { id: 11, url: 'sample12.mp3', label: 'カフェのドアベル' },
-                
-                { id: 12, url: 'sample13.mp3', label: '犬の吠え声' },
-                { id: 13, url: 'sample14.mp3', label: '自転車のベル' },
-                { id: 14, url: 'sample15.mp3', label: '雨の音' },
-                { id: 15, url: 'sample16.mp3', label: '（空き）' }
+                { id: 0, url: 'sample1.mp3', label: '足音' }, { id: 1, url: 'sample2.mp3', label: '接近' },
+                { id: 2, url: 'sample3.mp3', label: '雑踏' }, { id: 3, url: 'sample4.mp3', label: '排気' },
+                { id: 4, url: 'sample5.mp3', label: '鳥鳴' }, { id: 5, url: 'sample6.mp3', label: '信号' },
+                { id: 6, url: 'sample7.mp3', label: '放送' }, { id: 7, url: 'sample8.mp3', label: '昇降' },
+                { id: 8, url: 'sample9.mp3', label: '救急' }, { id: 9, url: 'sample10.mp3', label: '警笛' },
+                { id: 10, url: 'sample11.mp3', label: '販売' }, { id: 11, url: 'sample12.mp3', label: '入店' },
+                { id: 12, url: 'sample13.mp3', label: '遠吠' }, { id: 13, url: 'sample14.mp3', label: '自転' },
+                { id: 14, url: 'sample15.mp3', label: '雨音' }, { id: 15, url: 'sample16.mp3', label: '空白' }
             ]
         },
-        
         'soundscape-forest': {
             name: "長野・霧ヶ峰の森",
-            recorder: "Visitor A",
-            // テスト用画像URL
-            image: "https://images.unsplash.com/photo-1441974231531-c6227db76b6e?w=1000",
+            recorder: "Recorded by Visitor A",
+            // 自然の静寂、有機的な緑
+            image: "https://images.unsplash.com/photo-1441974231531-c6227db76b6e?w=1200",
             samples: [
-                { id: 0, url: 'samplea.mp3', label: '足音' },
-                { id: 1, url: 'sampleb.mp3', label: '電車接近音' },
-                { id: 2, url: 'samplec.mp3', label: '駅の雑踏' },
-                { id: 3, url: 'sampled.mp3', label: 'バイクの排気音' },
-                
-                { id: 4, url: 'samplee.mp3', label: 'カラスの鳴き声' },
-                { id: 5, url: 'samplef.mp3', label: '信号の音' },
-                { id: 6, url: 'sampleg.mp3', label: 'アナウンス' },
-                { id: 7, url: 'sampleh.mp3', label: 'エスカレーター' },
-                
-                { id: 8, url: 'samplei.mp3', label: '救急車のサイレン' },
-                { id: 9, url: 'samplej.mp3', label: '車のクラクション' },
-                { id: 10, url: 'samplek.mp3', label: '販売員の声' },
-                { id: 11, url: 'samplel.mp3', label: 'カフェのドアベル' },
-                
-                { id: 12, url: 'samplem.mp3', label: '犬の吠え声' },
-                { id: 13, url: 'samplen.mp3', label: '自転車のベル' },
-                { id: 14, url: 'sampleo.mp3', label: '雨の音' },
-                { id: 15, url: 'samplep.mp3', label: '（空き）' }
+                { id: 0, url: 'samplea.mp3', label: '落葉' }, { id: 1, url: 'sampleb.mp3', label: '小鳥' },
+                { id: 2, url: 'samplec.mp3', label: '葉擦' }, { id: 3, url: 'sampled.mp3', label: '遠雷' },
+                { id: 4, url: 'samplee.mp3', label: '羽音' }, { id: 5, url: 'samplef.mp3', label: '水流' },
+                { id: 6, url: 'sampleg.mp3', label: '折枝' }, { id: 7, url: 'sampleh.mp3', label: '夜鳥' },
+                { id: 8, url: 'samplei.mp3', label: '濃霧' }, { id: 9, url: 'samplej.mp3', label: '獣道' },
+                { id: 10, url: 'samplek.mp3', label: '焚火' }, { id: 11, url: 'samplel.mp3', label: '呼吸' },
+                { id: 12, url: 'samplem.mp3', label: '静寂' }, { id: 13, url: 'samplen.mp3', label: '飛翔' },
+                { id: 14, url: 'sampleo.mp3', label: '雫音' }, { id: 15, url: 'samplep.mp3', label: '空白' }
             ]
         }
     };
 
-    let currentSetKey = 'soundscape-tokyo'; 
-
     // ==========================================
-    // 2. コア関数群 (AudioContext, Preload, Play)
+    // 2. System Core (State & Audio)
     // ==========================================
+    let audioContext;
+    const audioBuffers = new Array(16);
+    let currentSetKey = 'soundscape-tokyo';
+    const playingNodes = {};
+    const pressedKeys = new Set();
+    const keyMap = ['7','8','9','0', 'u','i','o','p', 'j','k','l',';', 'm',',','.','/'];
 
     function initAudioContext() {
+        if (audioContext) return;
         try {
             audioContext = new (window.AudioContext || window.webkitAudioContext)();
-            console.log("AudioContext initialized.");
+            // 初回のプリロードを確実に
             preloadAllSamples(); 
         } catch (e) {
-            alert('Web Audio API is not supported in this browser.');
+            console.error("Audio API not supported");
         }
     }
 
-    // T5-1: 動的データ対応版プリロード関数
+    // ==========================================
+    // 3. Logic: Weaving the Fragments
+    // ==========================================
+
+    // DOMの生成：1枚の写真を16分割するロジック
+    function renderPads(setData) {
+        const container = document.getElementById('sampler-container');
+        container.innerHTML = ''; // Clear existing
+
+        for (let i = 0; i < 16; i++) {
+            const pad = document.createElement('div');
+            pad.className = 'pad';
+            pad.dataset.id = i;
+            pad.dataset.key = keyMap[i];
+
+            // 画像の断片化処理 (Phase 2 Logic)
+            // 4x4グリッドにおける座標計算
+            const col = i % 4; 
+            const row = Math.floor(i / 4);
+            
+            // background-size: 400% なので、各ポジションは 0%, 33.33%, 66.66%, 100% となる
+            const xPos = col * (100 / 3); 
+            const yPos = row * (100 / 3);
+            
+            // 画像とポジションの適用
+            pad.style.backgroundImage = `url('${setData.image}')`;
+            pad.style.backgroundPosition = `${xPos}% ${yPos}%`;
+
+            // ラベルの追加
+            const label = document.createElement('span');
+            label.className = 'pad-label';
+            label.textContent = setData.samples[i].label;
+            pad.appendChild(label);
+
+            // イベントリスナーの登録
+            attachEvents(pad);
+            container.appendChild(pad);
+        }
+    }
+
+    // イベントリスナーの付与 (Touch & Mouse)
+    function attachEvents(pad) {
+        const trigger = (e) => {
+            if(e.cancelable) e.preventDefault();
+            pad.classList.add('active');
+            triggerSample(pad.dataset.id);
+        };
+        const release = (e) => {
+            if(e.cancelable) e.preventDefault();
+            pad.classList.remove('active');
+            stopSample(pad.dataset.id);
+        };
+
+        pad.addEventListener('mousedown', trigger);
+        pad.addEventListener('mouseup', release);
+        pad.addEventListener('mouseleave', release);
+        
+        pad.addEventListener('touchstart', trigger, {passive: false});
+        pad.addEventListener('touchend', release);
+        pad.addEventListener('touchcancel', release);
+    }
+
+    // 音源データの非同期ロード (Async/Await)
     async function preloadAllSamples() {
         const currentSetData = SAMPLER_SETS[currentSetKey];
-        if (!currentSetData) {
-            console.error(`Error: Sampler set '${currentSetKey}' not found.`);
-            return;
-        }
+        if (!currentSetData) return;
 
-        audioBuffers.fill(null); 
-        console.log(`Starting preload for set: ${currentSetData.name}...`);
-    
+        // バッファのクリア
+        audioBuffers.fill(null);
+
         const loadPromises = currentSetData.samples.map(async (sample) => {
-            const url = BASE_URL + sample.url;
-            
-            if (!sample.url) {
-                audioBuffers[sample.id] = null;
-                return;
-            }
-
+            if (!sample.url) return;
             try {
-                const response = await fetch(url);
-                if (!response.ok) {
-                     throw new Error(`HTTP Error: ${response.status}`);
-                }
-
+                const response = await fetch(BASE_URL + sample.url);
+                if (!response.ok) throw new Error(response.status);
                 const arrayBuffer = await response.arrayBuffer();
-                const audioBuffer = await audioContext.decodeAudioData(arrayBuffer);
-                audioBuffers[sample.id] = audioBuffer;
+                // AudioContextがない場合はデコードできないためスキップ（再生時に初期化）
+                if(audioContext) {
+                    audioBuffers[sample.id] = await audioContext.decodeAudioData(arrayBuffer);
+                }
             } catch (error) {
-                console.error(`Error loading sample ID ${sample.id}:`, error);
-                audioBuffers[sample.id] = null;
+                // 静かに失敗する（体験を阻害しない）
+                console.warn(`Fragment missing: ${sample.id}`);
             }
         });
 
-        try {
-            await Promise.all(loadPromises);
-            console.log(`Preload complete for set: ${currentSetData.name}`);
-            document.getElementById('sampler-container').style.opacity = 1.0;
-        } catch (error) {
-            console.error("Unexpected error during preload:", error);
-        }  
+        await Promise.all(loadPromises);
     }
 
-    // T5-2, T5-3, T5-4: セット切り替えのメイン関数
+    // 世界の切り替え (Phase 3 Logic)
     async function changeSamplerSet(setKey) {
-        if (!SAMPLER_SETS[setKey]) {
-            console.error(`Sampler set "${setKey}" not found.`);
-            return;
-        }
-
-        if (!audioContext) initAudioContext();
+        if (currentSetKey === setKey) return;
         
-        // 再生停止
-        for (let i = 0; i < 16; i++) {
-            releaseSample(i.toString());
-        }
+        // AudioContextの初期化（未実行の場合）
+        if (!audioContext) initAudioContext();
 
-        // UIをロード中表示に
-        const samplerContainer = document.getElementById('sampler-container');
-        samplerContainer.style.opacity = 0.3;
+        // 1. 視覚的なフェードアウト
+        const container = document.getElementById('sampler-container');
+        const meta = document.getElementById('meta-display');
+        container.style.opacity = 0;
+        meta.style.opacity = 0;
 
-        // セット切り替えと再ロード
+        // 2. 音の停止
+        Object.keys(playingNodes).forEach(id => stopSample(id));
+
+        // 3. データの更新待ち (少しの間を作る)
+        await new Promise(r => setTimeout(r, 600)); 
+
         currentSetKey = setKey;
-        console.log(`Switching to: ${SAMPLER_SETS[setKey].name}`);
-        
-        await preloadAllSamples(); 
+        const newData = SAMPLER_SETS[setKey];
 
-        // UI更新
-        const currentSetData = SAMPLER_SETS[setKey];
-        const pads = document.querySelectorAll('.pad');
+        // 4. メタデータの更新
+        document.getElementById('place-name').textContent = newData.name;
+        document.getElementById('recorder-name').textContent = newData.recorder;
 
-        // 背景画像の更新
-        if (currentSetData.image) {
-            document.body.style.backgroundImage = `url('${currentSetData.image}')`;
-        }
-
-        // ラベルの更新
-        pads.forEach((pad) => {
-            const id = parseInt(pad.dataset.id, 10);
-            const sampleData = currentSetData.samples[id];
-            pad.textContent = sampleData.label || pad.dataset.id;
+        // 5. メニューの更新
+        document.querySelectorAll('.menu-item').forEach(item => {
+            // 文字列比較でアクティブ状態を判定
+            const isMatch = setKey.includes(item.textContent.toLowerCase());
+            item.classList.toggle('active', isMatch);
         });
 
-        console.log(`UI Updated for: ${currentSetData.name}`);
-        samplerContainer.style.opacity = 1.0; 
-        console.log("Ready.");
+        // 6. DOM（パッド）の再構築
+        renderPads(newData);
+
+        // 7. 音源のロード
+        await preloadAllSamples();
+
+        // 8. 視覚的なフェードイン
+        container.style.opacity = 1;
+        meta.style.opacity = 1;
     }
 
-    function playSample(index) {
-        const sampleIndex = parseInt(index, 10);
-        if (!audioContext || !audioBuffers[sampleIndex]) return null;
-        
-        const source = audioContext.createBufferSource();
-        source.buffer = audioBuffers[sampleIndex]; 
-        source.connect(audioContext.destination);
-        source.start(0); 
-        
-        return source;
-    }
+    // ==========================================
+    // 4. Sound Control
+    // ==========================================
 
-    const playingNodes = {};
-
-    function triggerSample(sampleId) {
-        if (playingNodes[sampleId]) stopSample(sampleId);
+    function triggerSample(id) {
         if (!audioContext) initAudioContext();
+        if (playingNodes[id]) stopSample(id);
 
-        const sourceNode = playSample(sampleId); 
-        if (sourceNode) playingNodes[sampleId] = sourceNode;
+        const buffer = audioBuffers[parseInt(id)];
+        if (!buffer) return;
+
+        const source = audioContext.createBufferSource();
+        source.buffer = buffer;
+        source.connect(audioContext.destination);
+        source.start(0);
+        playingNodes[id] = source;
     }
 
-    function releaseSample(sampleId) {
-        stopSample(sampleId);
-    }
-        
-    function stopSample(index) {
-        const sourceNode = playingNodes[index];
-        if (sourceNode) {
-            sourceNode.stop(0); 
-            delete playingNodes[index];
+    function stopSample(id) {
+        if (playingNodes[id]) {
+            try {
+                playingNodes[id].stop(0);
+            } catch(e) { /* ignore */ }
+            delete playingNodes[id];
         }
     }
 
     // ==========================================
-    // 3. イベントリスナー (操作)
+    // 5. Keyboard Access
     // ==========================================
+    window.addEventListener('keydown', (e) => {
+        if (e.metaKey || e.ctrlKey) return;
+        const key = e.key.toLowerCase();
+        const pad = document.querySelector(`.pad[data-key="${key}"]`);
+        
+        if (pad && !pressedKeys.has(key)) {
+            pressedKeys.add(key);
+            pad.classList.add('active');
+            triggerSample(pad.dataset.id);
+        }
+    });
 
+    window.addEventListener('keyup', (e) => {
+        const key = e.key.toLowerCase();
+        const pad = document.querySelector(`.pad[data-key="${key}"]`);
+        
+        if (pad) {
+            pressedKeys.delete(key);
+            pad.classList.remove('active');
+            stopSample(pad.dataset.id);
+        }
+    });
+
+    // ==========================================
+    // Initialization
+    // ==========================================
     window.addEventListener('load', () => {
-        const pads = document.querySelectorAll('.pad');
-
-        pads.forEach(pad => {
-            const sampleId = pad.dataset.id;
-
-            // マウス操作
-            pad.addEventListener('mousedown', () => {
-                pad.classList.add('active');
-                triggerSample(sampleId);
-            });
-            
-            pad.addEventListener('mouseup', () => {
-                pad.classList.remove('active');
-                releaseSample(sampleId);
-            });
-            
-            pad.addEventListener('mouseleave', () => {
-                if (pad.classList.contains('active')) {
-                    pad.classList.remove('active');
-                    releaseSample(sampleId);
-                }
-            });
-
-            // タッチ操作 (スマホ)
-            pad.addEventListener('touchstart', (e) => {
-                e.preventDefault(); 
-                pad.classList.add('active');
-                triggerSample(sampleId);
-            }, { passive: false });
-
-            const touchEndHandler = () => {
-                pad.classList.remove('active');
-                releaseSample(sampleId);
-            };
-
-            pad.addEventListener('touchend', touchEndHandler);
-            pad.addEventListener('touchcancel', touchEndHandler);
-        });
-
-        document.getElementById('sampler-container').style.opacity = 0.5;
-
-        // ★テスト用: 5秒後にセット切り替え
-        setTimeout(() => {
-            changeSamplerSet('soundscape-forest');
-        }, 5000); 
-    });
-
-    // キーボード操作
-    const pressedKeys = new Set();
-
-    window.addEventListener('keydown', (event) => {
-        if (event.metaKey || event.ctrlKey || event.altKey) return; 
-
-        const key = event.key.toLowerCase();
-        const pad = document.querySelector(`.pad[data-key="${key}"]`);
-        if (!pad) return;
-
-        event.preventDefault(); 
+        const initialData = SAMPLER_SETS[currentSetKey];
         
-        if (pressedKeys.has(key)) return;
-        pressedKeys.add(key);
+        // 初回のDOM構築
+        renderPads(initialData);
         
-        const sampleId = pad.dataset.id;
-        pad.classList.add('active');
-        triggerSample(sampleId); 
+        // メタデータのセット
+        document.getElementById('place-name').textContent = initialData.name;
+        document.getElementById('recorder-name').textContent = initialData.recorder;
+        
+        // フェードイン演出
+        const meta = document.getElementById('meta-display');
+        meta.style.opacity = 1;
     });
 
-    window.addEventListener('keyup', (event) => {
-        const key = event.key.toLowerCase();
-        const pad = document.querySelector(`.pad[data-key="${key}"]`);
-        if (!pad) return;
-
-        pressedKeys.delete(key);
-        const sampleId = pad.dataset.id;
-        pad.classList.remove('active');
-        releaseSample(sampleId);
-    });
     </script>
 </body>
 </html>
