@@ -5,6 +5,12 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Solosola | Soundscape Media</title>
     
+    <link rel="manifest" href="manifest.json">
+    <link rel="apple-touch-icon" href="icon.png">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="theme-color" content="#111111">
+
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@100;300&display=swap" rel="stylesheet">
@@ -34,6 +40,8 @@
             -webkit-font-smoothing: antialiased;
             user-select: none;
             -webkit-user-select: none;
+            /* iOSでのオーバースクロール（バウンス）防止 */
+            overscroll-behavior: none;
         }
 
         /* =========================================
@@ -74,7 +82,7 @@
             max-width: 600px;
             max-height: 600px;
             position: relative;
-            opacity: 0; /* データロード完了まで隠す */
+            opacity: 0;
             transition: opacity 1s ease;
         }
 
@@ -95,7 +103,6 @@
             background-repeat: no-repeat;
             cursor: pointer;
             
-            /* スマホ対策 */
             -webkit-touch-callout: none;
             -webkit-user-select: none;
             user-select: none;
@@ -144,7 +151,7 @@
             display: flex;
             gap: 30px;
             z-index: 20;
-            opacity: 0; /* ロード完了まで隠す */
+            opacity: 0;
             transition: opacity 1s ease;
         }
 
@@ -178,7 +185,6 @@
             width: 100%;
         }
 
-        /* 簡易ローディング表示 */
         #loading-indicator {
             position: absolute;
             font-size: 0.8rem;
@@ -217,9 +223,8 @@
     // 1. System Config
     // ==========================================
     const BASE_URL = "https://hayaleaf-glitch.github.io/web-sampler/";
-    const DATA_URL = "./data.json"; // GitHub上の相対パス
+    const DATA_URL = "./data.json"; 
     
-    // データは空で初期化（外部ファイルから読み込む）
     let SAMPLER_SETS = {};
 
     // ==========================================
@@ -245,49 +250,34 @@
     // 3. Logic: Data Loading & Rendering
     // ==========================================
 
-    // ★ Phase 3: 外部JSONデータの読み込み
     async function loadSystemData() {
         try {
-            console.log("Fetching system data...");
             const response = await fetch(DATA_URL);
-            
             if (!response.ok) throw new Error(`Data load failed: ${response.status}`);
             
             const jsonData = await response.json();
-            SAMPLER_SETS = jsonData.sets; // JSON構造に合わせてデータを格納
+            SAMPLER_SETS = jsonData.sets; 
             
-            console.log("System data loaded.", SAMPLER_SETS);
-            
-            // データロード完了後に初期化プロセスを開始
             initializeInterface();
-
         } catch (error) {
             console.error("Critical Error:", error);
             document.getElementById('loading-indicator').textContent = "SYSTEM ERROR";
         }
     }
 
-    // データロード後の初期化
     async function initializeInterface() {
-        // ローディング表示を消す
         document.getElementById('loading-indicator').style.display = 'none';
 
-        // 最初のセットを表示
         const initialData = SAMPLER_SETS[currentSetKey];
-        if (!initialData) {
-            console.error("Initial set not found");
-            return;
-        }
+        if (!initialData) return;
 
         renderPads(initialData);
         updateMeta(initialData);
 
-        // UIのフェードイン
         document.getElementById('sampler-wrapper').style.opacity = 1;
         document.getElementById('meta-display').style.opacity = 1;
         document.getElementById('menu').style.opacity = 1;
 
-        // 音源のプリロード
         initAudioContext();
         await preloadAllSamples();
     }
@@ -361,7 +351,7 @@
                     audioBuffers[sample.id] = await audioContext.decodeAudioData(arrayBuffer);
                 }
             } catch (error) {
-                // 音源ロード失敗は静かに無視
+                // Ignore missing samples
             }
         });
 
@@ -376,7 +366,6 @@
         const container = document.getElementById('sampler-container');
         const meta = document.getElementById('meta-display');
         
-        // フェードアウト
         container.style.opacity = 0;
         meta.style.opacity = 0;
 
@@ -397,7 +386,6 @@
         renderPads(newData);
         await preloadAllSamples();
 
-        // フェードイン
         container.style.opacity = 1;
         meta.style.opacity = 1;
     }
@@ -456,7 +444,6 @@
         }
     });
 
-    // ページ読み込み時にシステムデータをフェッチ開始
     window.addEventListener('load', loadSystemData);
 
     </script>
