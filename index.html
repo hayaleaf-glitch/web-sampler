@@ -32,7 +32,6 @@
             font-weight: 100;
             overflow: hidden;
             -webkit-font-smoothing: antialiased;
-            /* 全体的な選択禁止（アプリっぽくするため） */
             user-select: none;
             -webkit-user-select: none;
         }
@@ -47,7 +46,7 @@
             z-index: 10;
             pointer-events: none;
             opacity: 0;
-            animation: fadeIn 2s ease-out forwards 0.5s;
+            transition: opacity 1s ease;
         }
 
         #place-name {
@@ -75,6 +74,8 @@
             max-width: 600px;
             max-height: 600px;
             position: relative;
+            opacity: 0; /* データロード完了まで隠す */
+            transition: opacity 1s ease;
         }
 
         #sampler-container {
@@ -94,12 +95,11 @@
             background-repeat: no-repeat;
             cursor: pointer;
             
-            /* ▼ スマホ対策: 長押しメニューやハイライトを無効化 ▼ */
-            -webkit-touch-callout: none; /* iOS長押しメニュー禁止 */
-            -webkit-user-select: none;   /* 選択禁止 */
+            /* スマホ対策 */
+            -webkit-touch-callout: none;
+            -webkit-user-select: none;
             user-select: none;
-            -webkit-tap-highlight-color: transparent; /* タップ時の青い色を消す */
-            /* ▲ ここまで ▲ */
+            -webkit-tap-highlight-color: transparent;
 
             filter: brightness(1.0) grayscale(0.2); 
             transition: filter 0.05s ease-out;
@@ -136,7 +136,7 @@
         }
 
         /* =========================================
-           Menu
+           Menu & Loading
            ========================================= */
         #menu {
             position: absolute;
@@ -144,6 +144,8 @@
             display: flex;
             gap: 30px;
             z-index: 20;
+            opacity: 0; /* ロード完了まで隠す */
+            transition: opacity 1s ease;
         }
 
         .menu-item {
@@ -153,8 +155,6 @@
             opacity: 0.4;
             transition: all 0.4s ease;
             position: relative;
-            
-            /* スマホ対策 */
             -webkit-tap-highlight-color: transparent;
         }
 
@@ -178,13 +178,25 @@
             width: 100%;
         }
 
-        @keyframes fadeIn {
-            from { opacity: 0; transform: translateY(-10px); }
-            to { opacity: 1; transform: translateY(0); }
+        /* 簡易ローディング表示 */
+        #loading-indicator {
+            position: absolute;
+            font-size: 0.8rem;
+            letter-spacing: 0.2em;
+            opacity: 0.7;
+            animation: blink 1.5s infinite;
         }
+
+        @keyframes blink {
+            0%, 100% { opacity: 0.3; }
+            50% { opacity: 1; }
+        }
+
     </style>
 </head>
 <body>
+
+    <div id="loading-indicator">LOADING SYSTEM...</div>
 
     <div id="meta-display">
         <h1 id="place-name">SOLOSOLA</h1>
@@ -202,45 +214,16 @@
 
     <script>
     // ==========================================
-    // 1. Data Structure
+    // 1. System Config
     // ==========================================
     const BASE_URL = "https://hayaleaf-glitch.github.io/web-sampler/";
+    const DATA_URL = "./data.json"; // GitHub上の相対パス
     
-    const SAMPLER_SETS = {
-        'soundscape-tokyo': {
-            name: "東京・渋谷駅前",
-            recorder: "Recorded by Solosola",
-            image: "https://images.unsplash.com/photo-1542051841857-5f90071e7989?w=1200", 
-            samples: [
-                { id: 0, url: 'sample1.mp3', label: '足音' }, { id: 1, url: 'sample2.mp3', label: '接近' },
-                { id: 2, url: 'sample3.mp3', label: '雑踏' }, { id: 3, url: 'sample4.mp3', label: '排気' },
-                { id: 4, url: 'sample5.mp3', label: '鳥鳴' }, { id: 5, url: 'sample6.mp3', label: '信号' },
-                { id: 6, url: 'sample7.mp3', label: '放送' }, { id: 7, url: 'sample8.mp3', label: '昇降' },
-                { id: 8, url: 'sample9.mp3', label: '救急' }, { id: 9, url: 'sample10.mp3', label: '警笛' },
-                { id: 10, url: 'sample11.mp3', label: '販売' }, { id: 11, url: 'sample12.mp3', label: '入店' },
-                { id: 12, url: 'sample13.mp3', label: '遠吠' }, { id: 13, url: 'sample14.mp3', label: '自転' },
-                { id: 14, url: 'sample15.mp3', label: '雨音' }, { id: 15, url: 'sample16.mp3', label: '空白' }
-            ]
-        },
-        'soundscape-forest': {
-            name: "長野・霧ヶ峰の森",
-            recorder: "Recorded by Visitor A",
-            image: "https://images.unsplash.com/photo-1441974231531-c6227db76b6e?w=1200",
-            samples: [
-                { id: 0, url: 'samplea.mp3', label: '落葉' }, { id: 1, url: 'sampleb.mp3', label: '小鳥' },
-                { id: 2, url: 'samplec.mp3', label: '葉擦' }, { id: 3, url: 'sampled.mp3', label: '遠雷' },
-                { id: 4, url: 'samplee.mp3', label: '羽音' }, { id: 5, url: 'samplef.mp3', label: '水流' },
-                { id: 6, url: 'sampleg.mp3', label: '折枝' }, { id: 7, url: 'sampleh.mp3', label: '夜鳥' },
-                { id: 8, url: 'samplei.mp3', label: '濃霧' }, { id: 9, url: 'samplej.mp3', label: '獣道' },
-                { id: 10, url: 'samplek.mp3', label: '焚火' }, { id: 11, url: 'samplel.mp3', label: '呼吸' },
-                { id: 12, url: 'samplem.mp3', label: '静寂' }, { id: 13, url: 'samplen.mp3', label: '飛翔' },
-                { id: 14, url: 'sampleo.mp3', label: '雫音' }, { id: 15, url: 'samplep.mp3', label: '空白' }
-            ]
-        }
-    };
+    // データは空で初期化（外部ファイルから読み込む）
+    let SAMPLER_SETS = {};
 
     // ==========================================
-    // 2. System Core
+    // 2. Audio Core
     // ==========================================
     let audioContext;
     const audioBuffers = new Array(16);
@@ -253,15 +236,61 @@
         if (audioContext) return;
         try {
             audioContext = new (window.AudioContext || window.webkitAudioContext)();
-            preloadAllSamples(); 
         } catch (e) {
             console.error("Audio API not supported");
         }
     }
 
     // ==========================================
-    // 3. Logic: Rendering & Events
+    // 3. Logic: Data Loading & Rendering
     // ==========================================
+
+    // ★ Phase 3: 外部JSONデータの読み込み
+    async function loadSystemData() {
+        try {
+            console.log("Fetching system data...");
+            const response = await fetch(DATA_URL);
+            
+            if (!response.ok) throw new Error(`Data load failed: ${response.status}`);
+            
+            const jsonData = await response.json();
+            SAMPLER_SETS = jsonData.sets; // JSON構造に合わせてデータを格納
+            
+            console.log("System data loaded.", SAMPLER_SETS);
+            
+            // データロード完了後に初期化プロセスを開始
+            initializeInterface();
+
+        } catch (error) {
+            console.error("Critical Error:", error);
+            document.getElementById('loading-indicator').textContent = "SYSTEM ERROR";
+        }
+    }
+
+    // データロード後の初期化
+    async function initializeInterface() {
+        // ローディング表示を消す
+        document.getElementById('loading-indicator').style.display = 'none';
+
+        // 最初のセットを表示
+        const initialData = SAMPLER_SETS[currentSetKey];
+        if (!initialData) {
+            console.error("Initial set not found");
+            return;
+        }
+
+        renderPads(initialData);
+        updateMeta(initialData);
+
+        // UIのフェードイン
+        document.getElementById('sampler-wrapper').style.opacity = 1;
+        document.getElementById('meta-display').style.opacity = 1;
+        document.getElementById('menu').style.opacity = 1;
+
+        // 音源のプリロード
+        initAudioContext();
+        await preloadAllSamples();
+    }
 
     function renderPads(setData) {
         const container = document.getElementById('sampler-container');
@@ -291,31 +320,27 @@
         }
     }
 
+    function updateMeta(data) {
+        document.getElementById('place-name').textContent = data.name;
+        document.getElementById('recorder-name').textContent = data.recorder;
+    }
+
     function attachEvents(pad) {
-        // イベントハンドラ（再生）
         const trigger = (e) => {
-            // スクロール等のデフォルト動作を防止
             if(e.cancelable && e.type === 'touchstart') e.preventDefault();
-            
             pad.classList.add('active');
             triggerSample(pad.dataset.id);
         };
         
-        // イベントハンドラ（停止）
         const release = (e) => {
             if(e.cancelable && e.type === 'touchend') e.preventDefault();
-            
             pad.classList.remove('active');
             stopSample(pad.dataset.id);
         };
 
-        // Mouse Events
         pad.addEventListener('mousedown', trigger);
         pad.addEventListener('mouseup', release);
         pad.addEventListener('mouseleave', release);
-        
-        // Touch Events (スマホ用)
-        // passive: false にすることで preventDefault() を有効化
         pad.addEventListener('touchstart', trigger, {passive: false});
         pad.addEventListener('touchend', release);
         pad.addEventListener('touchcancel', release);
@@ -331,13 +356,12 @@
             if (!sample.url) return;
             try {
                 const response = await fetch(BASE_URL + sample.url);
-                if (!response.ok) throw new Error(response.status);
                 const arrayBuffer = await response.arrayBuffer();
                 if(audioContext) {
                     audioBuffers[sample.id] = await audioContext.decodeAudioData(arrayBuffer);
                 }
             } catch (error) {
-                console.warn(`Fragment missing: ${sample.id}`);
+                // 音源ロード失敗は静かに無視
             }
         });
 
@@ -345,12 +369,14 @@
     }
 
     async function changeSamplerSet(setKey) {
-        if (currentSetKey === setKey) return;
+        if (currentSetKey === setKey || !SAMPLER_SETS[setKey]) return;
         
         if (!audioContext) initAudioContext();
 
         const container = document.getElementById('sampler-container');
         const meta = document.getElementById('meta-display');
+        
+        // フェードアウト
         container.style.opacity = 0;
         meta.style.opacity = 0;
 
@@ -361,8 +387,7 @@
         currentSetKey = setKey;
         const newData = SAMPLER_SETS[setKey];
 
-        document.getElementById('place-name').textContent = newData.name;
-        document.getElementById('recorder-name').textContent = newData.recorder;
+        updateMeta(newData);
 
         document.querySelectorAll('.menu-item').forEach(item => {
             const isMatch = setKey.includes(item.textContent.toLowerCase());
@@ -372,18 +397,17 @@
         renderPads(newData);
         await preloadAllSamples();
 
+        // フェードイン
         container.style.opacity = 1;
         meta.style.opacity = 1;
     }
 
     // ==========================================
-    // 4. Sound Control (Fix for Mobile)
+    // 4. Sound Control
     // ==========================================
 
     function triggerSample(id) {
         if (!audioContext) initAudioContext();
-
-        // ★スマホ対策: サスペンド状態なら再開させる
         if (audioContext && audioContext.state === 'suspended') {
             audioContext.resume();
         }
@@ -402,15 +426,13 @@
 
     function stopSample(id) {
         if (playingNodes[id]) {
-            try {
-                playingNodes[id].stop(0);
-            } catch(e) { /* ignore */ }
+            try { playingNodes[id].stop(0); } catch(e) {}
             delete playingNodes[id];
         }
     }
 
     // ==========================================
-    // 5. Keyboard Access
+    // 5. Input & Init
     // ==========================================
     window.addEventListener('keydown', (e) => {
         if (e.metaKey || e.ctrlKey) return;
@@ -427,7 +449,6 @@
     window.addEventListener('keyup', (e) => {
         const key = e.key.toLowerCase();
         const pad = document.querySelector(`.pad[data-key="${key}"]`);
-        
         if (pad) {
             pressedKeys.delete(key);
             pad.classList.remove('active');
@@ -435,20 +456,8 @@
         }
     });
 
-    // ==========================================
-    // Initialization
-    // ==========================================
-    window.addEventListener('load', () => {
-        const initialData = SAMPLER_SETS[currentSetKey];
-        
-        renderPads(initialData);
-        
-        document.getElementById('place-name').textContent = initialData.name;
-        document.getElementById('recorder-name').textContent = initialData.recorder;
-        
-        const meta = document.getElementById('meta-display');
-        meta.style.opacity = 1;
-    });
+    // ページ読み込み時にシステムデータをフェッチ開始
+    window.addEventListener('load', loadSystemData);
 
     </script>
 </body>
