@@ -11,12 +11,11 @@
 
     <style>
         /* =========================================
-           Global Design: The Canvas of Silence
+           Global Design
            ========================================= */
         :root {
-            --bg-color: #111111; /* マットなダークグレー */
+            --bg-color: #111111;
             --text-color: #ffffff;
-            --accent-overlay: rgba(255, 255, 255, 0.4); /* 打鍵時の光 */
             --transition-speed: 0.6s;
         }
 
@@ -30,20 +29,23 @@
             background-color: var(--bg-color);
             color: var(--text-color);
             font-family: 'Helvetica Neue', 'Noto Sans JP', sans-serif;
-            font-weight: 100; /* UltraLight / Thin */
-            overflow: hidden; /* 世界の端（スクロールバー）を隠す */
+            font-weight: 100;
+            overflow: hidden;
             -webkit-font-smoothing: antialiased;
+            /* 全体的な選択禁止（アプリっぽくするため） */
+            user-select: none;
+            -webkit-user-select: none;
         }
 
         /* =========================================
-           Meta Info: The Coordinates of Memory
+           Meta Info
            ========================================= */
         #meta-display {
             position: absolute;
             top: 6vmin;
             left: 6vmin;
             z-index: 10;
-            pointer-events: none; /* 演奏を邪魔しない */
+            pointer-events: none;
             opacity: 0;
             animation: fadeIn 2s ease-out forwards 0.5s;
         }
@@ -65,10 +67,9 @@
         }
 
         /* =========================================
-           The Instrument: Fragmented Landscape
+           The Instrument
            ========================================= */
         #sampler-wrapper {
-            /* 常に正方形を維持し、画面に収まる最大のサイズを計算 */
             width: 85vmin;
             height: 85vmin;
             max-width: 600px;
@@ -80,7 +81,7 @@
             display: grid;
             grid-template-columns: repeat(4, 1fr);
             grid-template-rows: repeat(4, 1fr);
-            gap: 0px; /* 隙間なく配置し、一枚の絵として統合する */
+            gap: 0px;
             width: 100%;
             height: 100%;
             transition: opacity var(--transition-speed) ease;
@@ -88,20 +89,22 @@
 
         .pad {
             position: relative;
-            background-color: #222; /* 画像ロード前の下地 */
-            background-size: 400% 400%; /* 画像を4倍に拡大し、その一部を表示する */
+            background-color: #222;
+            background-size: 400% 400%;
             background-repeat: no-repeat;
             cursor: pointer;
-            user-select: none;
             
-            /* 視覚的なフィードバックの準備 */
+            /* ▼ スマホ対策: 長押しメニューやハイライトを無効化 ▼ */
+            -webkit-touch-callout: none; /* iOS長押しメニュー禁止 */
+            -webkit-user-select: none;   /* 選択禁止 */
+            user-select: none;
+            -webkit-tap-highlight-color: transparent; /* タップ時の青い色を消す */
+            /* ▲ ここまで ▲ */
+
             filter: brightness(1.0) grayscale(0.2); 
             transition: filter 0.05s ease-out;
         }
 
-        /* 打鍵時のエフェクト: 
-           風景のその一点だけに光が差し込むような表現
-        */
         .pad::after {
             content: '';
             position: absolute;
@@ -114,14 +117,13 @@
 
         .pad.active {
             filter: brightness(1.2) grayscale(0);
-            z-index: 1; /* 光った瞬間だけ手前に */
+            z-index: 1;
         }
 
         .pad.active::after {
-            opacity: 0.15; /* 白いベールを一瞬被せる */
+            opacity: 0.15;
         }
 
-        /* ラベル（文字）は極力主張させず、風景に溶け込ませる */
         .pad-label {
             position: absolute;
             bottom: 5px;
@@ -134,7 +136,7 @@
         }
 
         /* =========================================
-           Menu: The Portal
+           Menu
            ========================================= */
         #menu {
             position: absolute;
@@ -151,6 +153,9 @@
             opacity: 0.4;
             transition: all 0.4s ease;
             position: relative;
+            
+            /* スマホ対策 */
+            -webkit-tap-highlight-color: transparent;
         }
 
         .menu-item::after {
@@ -187,8 +192,7 @@
     </div>
 
     <div id="sampler-wrapper">
-        <div id="sampler-container">
-            </div>
+        <div id="sampler-container"></div>
     </div>
 
     <div id="menu">
@@ -197,15 +201,8 @@
     </div>
 
     <script>
-    /*
-     * Soundscape Media "Solosola"
-     * Code written with respect for the artist's vision.
-     * * Core Concept: 
-     * The separation of an image into 16 fragments, reconnected by sound.
-     */
-
     // ==========================================
-    // 1. Data Structure (Abstracted for Future JSON)
+    // 1. Data Structure
     // ==========================================
     const BASE_URL = "https://hayaleaf-glitch.github.io/web-sampler/";
     
@@ -213,7 +210,6 @@
         'soundscape-tokyo': {
             name: "東京・渋谷駅前",
             recorder: "Recorded by Solosola",
-            // 都会の喧騒、コンクリートの質感
             image: "https://images.unsplash.com/photo-1542051841857-5f90071e7989?w=1200", 
             samples: [
                 { id: 0, url: 'sample1.mp3', label: '足音' }, { id: 1, url: 'sample2.mp3', label: '接近' },
@@ -229,7 +225,6 @@
         'soundscape-forest': {
             name: "長野・霧ヶ峰の森",
             recorder: "Recorded by Visitor A",
-            // 自然の静寂、有機的な緑
             image: "https://images.unsplash.com/photo-1441974231531-c6227db76b6e?w=1200",
             samples: [
                 { id: 0, url: 'samplea.mp3', label: '落葉' }, { id: 1, url: 'sampleb.mp3', label: '小鳥' },
@@ -245,7 +240,7 @@
     };
 
     // ==========================================
-    // 2. System Core (State & Audio)
+    // 2. System Core
     // ==========================================
     let audioContext;
     const audioBuffers = new Array(16);
@@ -258,7 +253,6 @@
         if (audioContext) return;
         try {
             audioContext = new (window.AudioContext || window.webkitAudioContext)();
-            // 初回のプリロードを確実に
             preloadAllSamples(); 
         } catch (e) {
             console.error("Audio API not supported");
@@ -266,13 +260,12 @@
     }
 
     // ==========================================
-    // 3. Logic: Weaving the Fragments
+    // 3. Logic: Rendering & Events
     // ==========================================
 
-    // DOMの生成：1枚の写真を16分割するロジック
     function renderPads(setData) {
         const container = document.getElementById('sampler-container');
-        container.innerHTML = ''; // Clear existing
+        container.innerHTML = '';
 
         for (let i = 0; i < 16; i++) {
             const pad = document.createElement('div');
@@ -280,59 +273,58 @@
             pad.dataset.id = i;
             pad.dataset.key = keyMap[i];
 
-            // 画像の断片化処理 (Phase 2 Logic)
-            // 4x4グリッドにおける座標計算
             const col = i % 4; 
             const row = Math.floor(i / 4);
-            
-            // background-size: 400% なので、各ポジションは 0%, 33.33%, 66.66%, 100% となる
             const xPos = col * (100 / 3); 
             const yPos = row * (100 / 3);
             
-            // 画像とポジションの適用
             pad.style.backgroundImage = `url('${setData.image}')`;
             pad.style.backgroundPosition = `${xPos}% ${yPos}%`;
 
-            // ラベルの追加
             const label = document.createElement('span');
             label.className = 'pad-label';
             label.textContent = setData.samples[i].label;
             pad.appendChild(label);
 
-            // イベントリスナーの登録
             attachEvents(pad);
             container.appendChild(pad);
         }
     }
 
-    // イベントリスナーの付与 (Touch & Mouse)
     function attachEvents(pad) {
+        // イベントハンドラ（再生）
         const trigger = (e) => {
-            if(e.cancelable) e.preventDefault();
+            // スクロール等のデフォルト動作を防止
+            if(e.cancelable && e.type === 'touchstart') e.preventDefault();
+            
             pad.classList.add('active');
             triggerSample(pad.dataset.id);
         };
+        
+        // イベントハンドラ（停止）
         const release = (e) => {
-            if(e.cancelable) e.preventDefault();
+            if(e.cancelable && e.type === 'touchend') e.preventDefault();
+            
             pad.classList.remove('active');
             stopSample(pad.dataset.id);
         };
 
+        // Mouse Events
         pad.addEventListener('mousedown', trigger);
         pad.addEventListener('mouseup', release);
         pad.addEventListener('mouseleave', release);
         
+        // Touch Events (スマホ用)
+        // passive: false にすることで preventDefault() を有効化
         pad.addEventListener('touchstart', trigger, {passive: false});
         pad.addEventListener('touchend', release);
         pad.addEventListener('touchcancel', release);
     }
 
-    // 音源データの非同期ロード (Async/Await)
     async function preloadAllSamples() {
         const currentSetData = SAMPLER_SETS[currentSetKey];
         if (!currentSetData) return;
 
-        // バッファのクリア
         audioBuffers.fill(null);
 
         const loadPromises = currentSetData.samples.map(async (sample) => {
@@ -341,12 +333,10 @@
                 const response = await fetch(BASE_URL + sample.url);
                 if (!response.ok) throw new Error(response.status);
                 const arrayBuffer = await response.arrayBuffer();
-                // AudioContextがない場合はデコードできないためスキップ（再生時に初期化）
                 if(audioContext) {
                     audioBuffers[sample.id] = await audioContext.decodeAudioData(arrayBuffer);
                 }
             } catch (error) {
-                // 静かに失敗する（体験を阻害しない）
                 console.warn(`Fragment missing: ${sample.id}`);
             }
         });
@@ -354,56 +344,50 @@
         await Promise.all(loadPromises);
     }
 
-    // 世界の切り替え (Phase 3 Logic)
     async function changeSamplerSet(setKey) {
         if (currentSetKey === setKey) return;
         
-        // AudioContextの初期化（未実行の場合）
         if (!audioContext) initAudioContext();
 
-        // 1. 視覚的なフェードアウト
         const container = document.getElementById('sampler-container');
         const meta = document.getElementById('meta-display');
         container.style.opacity = 0;
         meta.style.opacity = 0;
 
-        // 2. 音の停止
         Object.keys(playingNodes).forEach(id => stopSample(id));
 
-        // 3. データの更新待ち (少しの間を作る)
         await new Promise(r => setTimeout(r, 600)); 
 
         currentSetKey = setKey;
         const newData = SAMPLER_SETS[setKey];
 
-        // 4. メタデータの更新
         document.getElementById('place-name').textContent = newData.name;
         document.getElementById('recorder-name').textContent = newData.recorder;
 
-        // 5. メニューの更新
         document.querySelectorAll('.menu-item').forEach(item => {
-            // 文字列比較でアクティブ状態を判定
             const isMatch = setKey.includes(item.textContent.toLowerCase());
             item.classList.toggle('active', isMatch);
         });
 
-        // 6. DOM（パッド）の再構築
         renderPads(newData);
-
-        // 7. 音源のロード
         await preloadAllSamples();
 
-        // 8. 視覚的なフェードイン
         container.style.opacity = 1;
         meta.style.opacity = 1;
     }
 
     // ==========================================
-    // 4. Sound Control
+    // 4. Sound Control (Fix for Mobile)
     // ==========================================
 
     function triggerSample(id) {
         if (!audioContext) initAudioContext();
+
+        // ★スマホ対策: サスペンド状態なら再開させる
+        if (audioContext && audioContext.state === 'suspended') {
+            audioContext.resume();
+        }
+
         if (playingNodes[id]) stopSample(id);
 
         const buffer = audioBuffers[parseInt(id)];
@@ -457,14 +441,11 @@
     window.addEventListener('load', () => {
         const initialData = SAMPLER_SETS[currentSetKey];
         
-        // 初回のDOM構築
         renderPads(initialData);
         
-        // メタデータのセット
         document.getElementById('place-name').textContent = initialData.name;
         document.getElementById('recorder-name').textContent = initialData.recorder;
         
-        // フェードイン演出
         const meta = document.getElementById('meta-display');
         meta.style.opacity = 1;
     });
