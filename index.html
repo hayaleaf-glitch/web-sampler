@@ -16,9 +16,6 @@
     <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@100;300&display=swap" rel="stylesheet">
 
     <style>
-        /* =========================================
-           Global Design
-           ========================================= */
         :root {
             --bg-color: #111111;
             --text-color: #ffffff;
@@ -48,7 +45,7 @@
            ========================================= */
         #meta-display {
             position: absolute;
-            top: calc(40px + env(safe-area-inset-top)); /* セーフエリア考慮 */
+            top: calc(40px + env(safe-area-inset-top));
             left: 40px;
             z-index: 10;
             pointer-events: none;
@@ -142,26 +139,73 @@
         }
 
         /* =========================================
-           Menu & Loading
+           Menu System (New: Scrollable & Categories)
            ========================================= */
-        #menu {
+        #menu-container {
             position: absolute;
-            /* iPhone下部のバーを避けるため位置を調整 */
-            bottom: calc(60px + env(safe-area-inset-bottom)); 
+            bottom: calc(50px + env(safe-area-inset-bottom));
             display: flex;
-            gap: 30px;
+            flex-direction: column;
+            align-items: center;
+            gap: 15px;
             z-index: 20;
             opacity: 0;
             transition: opacity 1s ease;
+            width: 100%; /* 全幅を使う */
+            max-width: 600px;
+        }
+
+        /* カテゴリメニュー（上段） */
+        #category-menu {
+            display: flex;
+            gap: 20px;
+        }
+
+        .category-item {
+            font-size: 0.7rem;
+            letter-spacing: 0.2em;
+            opacity: 0.3;
+            cursor: pointer;
+            transition: opacity 0.3s;
+        }
+        .category-item.active { opacity: 1; text-decoration: underline; }
+
+        /* セットメニュー（下段・横スクロール） */
+        #set-menu {
+            display: flex;
+            gap: 30px;
+            overflow-x: auto; /* 横スクロール有効 */
+            white-space: nowrap; /* 折り返し禁止 */
+            padding: 0 40px; /* 左右に余白 */
+            width: 100%;
+            box-sizing: border-box;
+            
+            /* スクロールバーを隠す */
+            -ms-overflow-style: none;
+            scrollbar-width: none;
+            /* iOS慣性スクロール */
+            -webkit-overflow-scrolling: touch;
+            
+            /* 中央寄せっぽく見せるためのフレックス調整 */
+            justify-content: flex-start; 
+        }
+        #set-menu::-webkit-scrollbar { display: none; }
+
+        /* セット名の後に余白を作る（最後の要素が見切れないように） */
+        #set-menu::after {
+            content: '';
+            min-width: 20px;
+            height: 1px;
         }
 
         .menu-item {
             cursor: pointer;
-            font-size: 0.8rem;
+            font-size: 0.9rem;
             letter-spacing: 0.2em;
             opacity: 0.4;
             transition: all 0.4s ease;
             position: relative;
+            flex-shrink: 0; /* 縮まないようにする */
             -webkit-tap-highlight-color: transparent;
         }
 
@@ -180,7 +224,6 @@
         .menu-item:hover, .menu-item.active {
             opacity: 1;
         }
-
         .menu-item.active::after {
             width: 100%;
         }
@@ -197,7 +240,6 @@
             0%, 100% { opacity: 0.3; }
             50% { opacity: 1; }
         }
-
     </style>
 </head>
 <body>
@@ -213,9 +255,11 @@
         <div id="sampler-container"></div>
     </div>
 
-    <div id="menu">
-        <div class="menu-item active" onclick="changeSamplerSet('soundscape-tokyo')">TOKYO</div>
-        <div class="menu-item" onclick="changeSamplerSet('soundscape-forest')">FOREST</div>
+    <div id="menu-container">
+        <div id="category-menu">
+            </div>
+        <div id="set-menu">
+            </div>
     </div>
 
     <script>
@@ -225,14 +269,15 @@
     const BASE_URL = "https://hayaleaf-glitch.github.io/web-sampler/";
     const DATA_URL = "./data.json"; 
     
-    let SAMPLER_SETS = {};
+    let SYSTEM_DATA = {}; // 全データ
+    let currentCategory = null;
+    let currentSetKey = null; // 初期値はロード後に決定
 
     // ==========================================
     // 2. Audio Core
     // ==========================================
     let audioContext;
     const audioBuffers = new Array(16);
-    let currentSetKey = 'soundscape-tokyo';
     const playingNodes = {};
     const pressedKeys = new Set();
     const keyMap = ['7','8','9','0', 'u','i','o','p', 'j','k','l',';', 'm',',','.','/'];
@@ -255,8 +300,16 @@
             const response = await fetch(DATA_URL);
             if (!response.ok) throw new Error(`Data load failed: ${response.status}`);
             
-            const jsonData = await response.json();
-            SAMPLER_SETS = jsonData.sets; 
+            SYSTEM_DATA = await response.json();
+            
+            // 初期カテゴリとセットを決定
+            if (SYSTEM_DATA.categories && SYSTEM_DATA.categories.length > 0) {
+                // 最初のカテゴリを選択
+                selectCategory(SYSTEM_DATA.categories[0].id);
+            } else {
+                // カテゴリがない場合のフォールバック（旧仕様対策）
+                console.error("Invalid Data Structure");
+            }
             
             initializeInterface();
         } catch (error) {
@@ -265,21 +318,74 @@
         }
     }
 
+    // カテゴリ選択時の処理
+    function selectCategory(catId) {
+        currentCategory = catId;
+        const categoryData = SYSTEM_DATA.categories.find(c => c.id === catId);
+        
+        // カテゴリUIの更新
+        renderCategoryMenu();
+        
+        // セットメニューの更新（そのカテゴリに属するセットのみ表示）
+        renderSetMenu(categoryData.sets);
+        
+        // そのカテゴリの最初のセットを自動選択（初回ロード時やカテゴリ切り替え時）
+        if (categoryData.sets.length > 0) {
+            // 既に選択中のセットがこのカテゴリに含まれていれば維持、そうでなければ先頭へ
+            if (!categoryData.sets.includes(currentSetKey)) {
+                changeSamplerSet(categoryData.sets[0]);
+            }
+        }
+    }
+
+    // カテゴリメニュー描画
+    function renderCategoryMenu() {
+        const catMenu = document.getElementById('category-menu');
+        catMenu.innerHTML = '';
+        
+        SYSTEM_DATA.categories.forEach(cat => {
+            const el = document.createElement('div');
+            el.className = `category-item ${cat.id === currentCategory ? 'active' : ''}`;
+            el.textContent = cat.label;
+            el.onclick = () => selectCategory(cat.id);
+            catMenu.appendChild(el);
+        });
+    }
+
+    // セットメニュー描画（横スクロール対応）
+    function renderSetMenu(setIds) {
+        const setMenu = document.getElementById('set-menu');
+        setMenu.innerHTML = '';
+        
+        setIds.forEach(setId => {
+            const setData = SYSTEM_DATA.sets[setId];
+            if (!setData) return;
+
+            const el = document.createElement('div');
+            // 表示名は短縮（TOKYOなど）にするか、そのままか。今回はnameを使うが、
+            // 将来的にはshort_nameをJSONに追加しても良い。
+            // ここでは簡易的にスペース区切りの最初の単語などを表示するなどの処理も可能だが、
+            // 一旦そのまま表示する。
+            // CSSで折り返さない設定にしているため、長くても横スクロールできる。
+            
+            // 表示用の名前を生成（英語部分だけ抜き出すなど工夫可能だが、今はそのまま）
+            // メニューには少し短めの名前がいいので、ラベル用のデータがない場合はnameを使う
+            el.textContent = setData.name.split('・')[0] || setData.name; // 「東京・渋谷」なら「東京」だけ表示してみる工夫
+            
+            el.className = `menu-item ${setId === currentSetKey ? 'active' : ''}`;
+            el.onclick = () => changeSamplerSet(setId);
+            setMenu.appendChild(el);
+        });
+    }
+
     async function initializeInterface() {
         document.getElementById('loading-indicator').style.display = 'none';
 
-        const initialData = SAMPLER_SETS[currentSetKey];
-        if (!initialData) return;
-
-        renderPads(initialData);
-        updateMeta(initialData);
-
         document.getElementById('sampler-wrapper').style.opacity = 1;
         document.getElementById('meta-display').style.opacity = 1;
-        document.getElementById('menu').style.opacity = 1;
+        document.getElementById('menu-container').style.opacity = 1;
 
         initAudioContext();
-        await preloadAllSamples();
     }
 
     function renderPads(setData) {
@@ -337,7 +443,7 @@
     }
 
     async function preloadAllSamples() {
-        const currentSetData = SAMPLER_SETS[currentSetKey];
+        const currentSetData = SYSTEM_DATA.sets[currentSetKey];
         if (!currentSetData) return;
 
         audioBuffers.fill(null);
@@ -359,7 +465,7 @@
     }
 
     async function changeSamplerSet(setKey) {
-        if (currentSetKey === setKey || !SAMPLER_SETS[setKey]) return;
+        if (currentSetKey === setKey || !SYSTEM_DATA.sets[setKey]) return;
         
         if (!audioContext) initAudioContext();
 
@@ -374,14 +480,17 @@
         await new Promise(r => setTimeout(r, 600)); 
 
         currentSetKey = setKey;
-        const newData = SAMPLER_SETS[setKey];
+        const newData = SYSTEM_DATA.sets[setKey];
 
         updateMeta(newData);
-
-        document.querySelectorAll('.menu-item').forEach(item => {
-            const isMatch = setKey.includes(item.textContent.toLowerCase());
-            item.classList.toggle('active', isMatch);
-        });
+        
+        // メニューのハイライト更新
+        const menuItems = document.querySelectorAll('#set-menu .menu-item');
+        // 再描画したほうが早いが、今回はclass制御で対応
+        // Note: カテゴリ切り替え時にrenderSetMenuが走るので、ここでは簡易的なclass付替は難しい。
+        // なので、renderSetMenuを呼んでしまうのが確実。
+        const currentCatData = SYSTEM_DATA.categories.find(c => c.id === currentCategory);
+        renderSetMenu(currentCatData.sets);
 
         renderPads(newData);
         await preloadAllSamples();
@@ -391,7 +500,7 @@
     }
 
     // ==========================================
-    // 4. Sound Control
+    // 4. Sound Control (Phase 3.5: Still Basic)
     // ==========================================
 
     function triggerSample(id) {
