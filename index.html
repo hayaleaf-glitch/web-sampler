@@ -21,7 +21,7 @@
             --text-color: #ffffff;
             --accent-color: #ffffff;
             --hold-active-color: #ff9900; 
-            --fx-active-color: #00ccff; /* FXオン時の色 */
+            --fx-active-color: #00ccff; 
             --transition-speed: 0.6s;
         }
 
@@ -83,7 +83,7 @@
             position: relative;
             opacity: 0;
             transition: opacity 1s ease;
-            touch-action: none; /* スクロール無効化（FX操作のため） */
+            touch-action: none; 
         }
 
         #sampler-container {
@@ -138,7 +138,7 @@
             pointer-events: none;
         }
 
-        /* FX Cursor (指の位置を示す光) */
+        /* FX Cursor */
         #fx-cursor {
             position: absolute;
             width: 40px;
@@ -165,7 +165,7 @@
             max-width: 600px;
             display: flex;
             justify-content: center;
-            gap: 20px; /* ボタン間の隙間 */
+            gap: 20px; 
             margin-top: 15px;
             opacity: 0;
             transition: opacity 1s ease;
@@ -194,7 +194,6 @@
             box-shadow: 0 0 10px rgba(255,255,255,0.3);
         }
         
-        /* FXボタン専用のスタイル（青系） */
         #fx-btn.active {
             background: var(--fx-active-color);
             border-color: var(--fx-active-color);
@@ -301,9 +300,6 @@
     </div>
 
     <script>
-    // ==========================================
-    // 1. System Config
-    // ==========================================
     const BASE_URL = "https://hayaleaf-glitch.github.io/web-sampler/";
     const DATA_URL = "./data.json"; 
     
@@ -311,16 +307,12 @@
     let currentCategory = null;
     let currentSetKey = null;
 
-    // ==========================================
-    // 2. Audio Core (Phase 3.8: FX Chain)
-    // ==========================================
     let audioContext;
     const audioBuffers = new Array(16);
     const playingNodes = {}; 
     let isHoldMode = false;
-    let isFxMode = false; // FXモード状態
+    let isFxMode = false; 
 
-    // Master FX Nodes
     let masterFilterNode;
     let masterReverbNode;
     let masterReverbGain;
@@ -337,43 +329,34 @@
         if (audioContext) return;
         try {
             audioContext = new (window.AudioContext || window.webkitAudioContext)();
-            setupMasterFX(); // FX回路の構築
+            setupMasterFX(); 
         } catch (e) {
             console.error("Audio API not supported");
         }
     }
 
-    // ★ FX回路の構築 (Source -> Filter -> Split(Dry/Wet) -> Master)
     function setupMasterFX() {
-        // 1. Filter (LPF)
         masterFilterNode = audioContext.createBiquadFilter();
         masterFilterNode.type = 'lowpass';
-        masterFilterNode.frequency.value = 20000; // 初期値: 全開
+        masterFilterNode.frequency.value = 20000; 
         masterFilterNode.Q.value = 1;
 
-        // 2. Reverb (Convolver)
         masterReverbNode = audioContext.createConvolver();
-        masterReverbNode.buffer = createReverbBuffer(2.0); // 2秒のリバーブ生成
+        masterReverbNode.buffer = createReverbBuffer(2.0); 
         
-        // Dry/Wet Mix Controls
         masterDryGain = audioContext.createGain();
         masterDryGain.gain.value = 1.0;
         
         masterReverbGain = audioContext.createGain();
-        masterReverbGain.gain.value = 0.0; // 初期値: リバーブなし
+        masterReverbGain.gain.value = 0.0; 
 
-        // Wiring
-        // Note: 個々の音は masterFilterNode に接続される
-        masterFilterNode.connect(masterDryGain); // Dry経路
-        masterFilterNode.connect(masterReverbNode); // Wet経路
-        
+        masterFilterNode.connect(masterDryGain); 
+        masterFilterNode.connect(masterReverbNode); 
         masterReverbNode.connect(masterReverbGain);
-
         masterDryGain.connect(audioContext.destination);
         masterReverbGain.connect(audioContext.destination);
     }
 
-    // ★ プロシージャル・リバーブ生成 (IRファイルを不要にする)
     function createReverbBuffer(duration) {
         const sampleRate = audioContext.sampleRate;
         const length = sampleRate * duration;
@@ -382,16 +365,12 @@
         const right = impulse.getChannelData(1);
 
         for (let i = 0; i < length; i++) {
-            const decay = Math.pow(1 - i / length, 2.0); // 減衰カーブ
+            const decay = Math.pow(1 - i / length, 2.0); 
             left[i] = (Math.random() * 2 - 1) * decay;
             right[i] = (Math.random() * 2 - 1) * decay;
         }
         return impulse;
     }
-
-    // ==========================================
-    // 3. Logic: Data & UI
-    // ==========================================
 
     async function loadSystemData() {
         try {
@@ -451,7 +430,7 @@
         document.getElementById('menu-container').style.opacity = 1;
         document.getElementById('control-bar').style.opacity = 1;
         initAudioContext();
-        setupFxInteraction(); // FX操作のイベントリスナー設定
+        setupFxInteraction(); 
     }
 
     function renderPads(setData) {
@@ -484,14 +463,9 @@
     }
 
     function attachEvents(pad) {
-        // FXモード時は、パッド自体のタッチイベントを阻害しないが、
-        // ドラッグ操作はFXコントロールとして親要素で拾う。
-        
         const trigger = (e) => {
-            // FXモード中でもタップで音は鳴らす
-            // ただしドラッグの開始点としても機能させる
             if(e.cancelable && e.type === 'touchstart') {
-                // e.preventDefault() はしない（FX操作のためスクロールはCSSで止めている）
+                // e.preventDefault(); // スクロール阻害しない
             }
             pad.classList.add('active');
             triggerSample(pad.dataset.id);
@@ -505,9 +479,6 @@
         };
         
         const release = (e) => {
-            // if(e.cancelable && e.type === 'touchend') e.preventDefault(); 
-            // ↑これを消さないと、FXモードでのタッチ操作がバッティングする可能性がある
-            
             pad.classList.remove('active'); 
             
             if (!isHoldMode) {
@@ -571,24 +542,26 @@
         }
     }
 
+    // ★ 修正: FXモード切替（リセット処理を削除）
     function toggleFxMode() {
         isFxMode = !isFxMode;
         const btn = document.getElementById('fx-btn');
+        const cursor = document.getElementById('fx-cursor');
+        
         if (isFxMode) {
             btn.classList.add('active');
-            // カーソル初期化（真ん中）
-            updateFxParams(0.5, 0.5); 
+            // 初期位置に戻さない（前回の位置のままにするか、真ん中に出すかは好みだが、
+            // 操作しやすくするために、前回値がない場合は真ん中に戻る）
+            // ここではあえて updateFxParams を呼ばず、現状維持させる
+            cursor.classList.add('active');
         } else {
             btn.classList.remove('active');
-            // FXリセット（フィルタ全開、リバーブ0）
-            if(masterFilterNode) masterFilterNode.frequency.setTargetAtTime(20000, audioContext.currentTime, 0.1);
-            if(masterReverbGain) masterReverbGain.gain.setTargetAtTime(0, audioContext.currentTime, 0.1);
-            
-            document.getElementById('fx-cursor').classList.remove('active');
+            // ★ リセット処理を削除したので、エフェクトはかかり続ける
+            // カーソルだけ消す
+            cursor.classList.remove('active');
         }
     }
 
-    // ★ FX操作ロジック
     function setupFxInteraction() {
         const wrapper = document.getElementById('sampler-wrapper');
         const cursor = document.getElementById('fx-cursor');
@@ -597,15 +570,11 @@
             if (!isFxMode) return;
             
             const rect = wrapper.getBoundingClientRect();
-            // 0.0 ~ 1.0 の正規化座標を計算
             let normX = (x - rect.left) / rect.width;
             let normY = (y - rect.top) / rect.height;
-            
-            // クランプ（はみ出し防止）
             normX = Math.max(0, Math.min(1, normX));
             normY = Math.max(0, Math.min(1, normY));
 
-            // カーソル移動
             cursor.style.left = `${normX * 100}%`;
             cursor.style.top = `${normY * 100}%`;
             cursor.classList.add('active');
@@ -616,39 +585,26 @@
         wrapper.addEventListener('mousemove', (e) => {
             if(e.buttons > 0) handleMove(e.clientX, e.clientY);
         });
-        
         wrapper.addEventListener('touchmove', (e) => {
             if(e.touches.length > 0) {
-                // スクロール等を防ぐ
-                // e.preventDefault(); // これをするとパッドのリリースが効かなくなる場合があるので注意
                 handleMove(e.touches[0].clientX, e.touches[0].clientY);
             }
         }, {passive: false});
-
-        // 離したらカーソル消える？ いや、Latch（固定）させる仕様だった
-        // wrapper.addEventListener('touchend', () => {}); 
     }
 
     function updateFxParams(x, y) {
         if (!audioContext || !masterFilterNode) return;
-
         const now = audioContext.currentTime;
 
-        // X軸: Filter Cutoff (左=Low, 右=High)
-        // 指数カーブで自然な変化に
         const minFreq = 100;
         const maxFreq = 20000;
         const frequency = minFreq * Math.pow(maxFreq / minFreq, x);
         masterFilterNode.frequency.setTargetAtTime(frequency, now, 0.1);
 
-        // Y軸: Reverb Mix (下=Dry, 上=Wet)
-        // 上(0.0) -> Wet, 下(1.0) -> Dry なので、1 - y を使う
         const mix = 1.0 - y; 
-        masterReverbGain.gain.setTargetAtTime(mix * 3.0, now, 0.1); // x3.0で強調
-        // Dryは少し下げる（音が濁りすぎないように）
+        masterReverbGain.gain.setTargetAtTime(mix * 3.0, now, 0.1); 
         masterDryGain.gain.setTargetAtTime(1.0 - (mix * 0.4), now, 0.1);
     }
-
 
     // ==========================================
     // 4. Advanced Sound Engine
@@ -663,6 +619,7 @@
         if (!buffer) return;
 
         if (playingNodes[id]) {
+            // HOLD中またはLoopの再タップは停止
             if (sampleData.loop || isHoldMode) {
                 stopSample(id, true); 
                 return;
@@ -678,7 +635,6 @@
         const gainNode = audioContext.createGain();
         source.connect(gainNode);
 
-        // ★ FX回路へ接続 (以前は destination だった)
         if (masterFilterNode) {
             gainNode.connect(masterFilterNode);
         } else {
@@ -689,7 +645,8 @@
         gainNode.gain.setValueAtTime(0, now);
         gainNode.gain.linearRampToValueAtTime(1, now + 0.05);
 
-        // 浄化スケジュール
+        // ★ 浄化スケジュール（通常通りセットする）
+        // ただし、HOLD中の短押しの場合は、stopSampleでこれをキャンセルする
         gainNode.gain.setValueAtTime(1, now + 0.45);
         gainNode.gain.linearRampToValueAtTime(0, now + 0.45 + DISSIPATE_DURATION);
 
@@ -710,8 +667,27 @@
         const pad = document.getElementById(`pad-${id}`);
 
         const sampleData = SYSTEM_DATA.sets[currentSetKey].samples[id];
+        
+        const now = audioContext.currentTime;
+        const pressDuration = now - node.startTime;
 
-        if (!forceStop && isHoldMode) return; 
+        // ★ HOLDロジックの大修正
+        // 強制停止(再タップ)でない場合
+        if (!forceStop && isHoldMode) {
+            // 短押し（閾値未満）の場合 -> 浄化スケジュールをキャンセルして音量MAX維持
+            if (pressDuration < LONG_PRESS_THRESHOLD) {
+                node.gain.gain.cancelScheduledValues(now);
+                node.gain.gain.setValueAtTime(1, now); // 音量を1に戻す（維持する）
+                
+                // 視覚的にも浄化を消す
+                pad.classList.remove('purifying');
+                clearTimeout(pad.dataset.purifyTimer);
+            }
+            // 長押し（閾値以上）の場合 -> すでに浄化（減衰）が始まっているので、そのまま放置（リターン）
+            // これにより、長押しして離した後も減衰が続く（＝浄化完了）
+            return; 
+        }
+
         if (!forceStop && sampleData.mode === 'oneshot' && !sampleData.loop) {
             pad.classList.remove('playing');
             pad.classList.remove('purifying');
@@ -720,11 +696,10 @@
             return; 
         }
         
+        // ここに来るのは「音を止める」時
         pad.classList.remove('purifying');
         clearTimeout(pad.dataset.purifyTimer);
 
-        const now = audioContext.currentTime;
-        const pressDuration = now - node.startTime;
         let releaseTime = DEFAULT_RELEASE;
 
         if (pressDuration > LONG_PRESS_THRESHOLD) {
