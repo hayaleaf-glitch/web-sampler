@@ -36,11 +36,21 @@
             color: var(--text-color);
             font-family: 'Helvetica Neue', 'Noto Sans JP', sans-serif;
             font-weight: 100;
-            overflow: hidden;
+            overflow: hidden; /* スクロール禁止 */
+            
+            /* モバイル特有の挙動を無効化 */
             -webkit-font-smoothing: antialiased;
-            user-select: none;
-            -webkit-user-select: none;
-            overscroll-behavior: none;
+            user-select: none;         /* テキスト選択禁止 */
+            -webkit-user-select: none; /* Safari用 */
+            -webkit-touch-callout: none; /* 長押しメニュー禁止 */
+            overscroll-behavior: none; /* バウンススクロール禁止 */
+            touch-action: none;        /* ピンチズーム等のジェスチャ禁止 */
+        }
+
+        /* 画像ドラッグ禁止 */
+        img {
+            pointer-events: none;
+            -webkit-user-drag: none;
         }
 
         /* =========================================
@@ -102,7 +112,10 @@
             background-size: 400% 400%;
             background-repeat: no-repeat;
             cursor: pointer;
+            
+            /* タップ時のハイライト色を透明に */
             -webkit-tap-highlight-color: transparent;
+            
             transition: filter 0.1s ease-out, transform 0.1s; 
             filter: brightness(1.0) grayscale(0.2); 
         }
@@ -173,6 +186,10 @@
             opacity: 0;
             transition: opacity 1s ease;
             z-index: 25;
+            
+            /* UI周りも選択不可に */
+            -webkit-user-select: none;
+            user-select: none;
         }
 
         .control-btn {
@@ -187,6 +204,7 @@
             opacity: 0.6;
             min-width: 60px;
             text-align: center;
+            -webkit-tap-highlight-color: transparent;
         }
 
         .control-btn.active {
@@ -219,6 +237,9 @@
             transition: opacity 1s ease;
             width: 100%;
             max-width: 600px;
+            
+            -webkit-user-select: none;
+            user-select: none;
         }
 
         #category-menu {
@@ -232,6 +253,7 @@
             opacity: 0.3;
             cursor: pointer;
             transition: opacity 0.3s;
+            -webkit-tap-highlight-color: transparent;
         }
         .category-item.active { opacity: 1; text-decoration: underline; }
 
@@ -326,6 +348,11 @@
     
     const DEFAULT_RELEASE = 0.5;   
     const LONG_PRESS_THRESHOLD = 0.4; 
+
+    // グローバルなコンテキストメニュー禁止（右クリック/長押しメニュー防止）
+    window.addEventListener('contextmenu', (e) => {
+        e.preventDefault();
+    }, { passive: false });
 
     function initAudioContext() {
         if (audioContext) return;
@@ -465,15 +492,13 @@
     }
 
     function attachEvents(pad) {
-        // ★修正: ゴーストクリック防止用のフラグ
+        // ゴーストクリック防止用のフラグ
         let isTouchTriggered = false;
 
         const trigger = (e) => {
-            // タッチで発火した場合、フラグを立ててマウスイベントを無視する
             if (e.type === 'touchstart') {
                 isTouchTriggered = true;
             } else if (e.type === 'mousedown' && isTouchTriggered) {
-                // ゴーストクリック（タッチ直後のマウスイベント）なら無視してフラグを下ろす
                 isTouchTriggered = false;
                 return;
             }
@@ -493,18 +518,14 @@
         };
         
         const release = (e) => {
-            // リリース時もゴーストクリックは無視（念のため）
             if (e.type === 'mouseup' && isTouchTriggered) return;
 
             pad.classList.remove('active'); 
             
-            // ★修正: 安全策
-            // 音が止まっていれば（ノードがなければ）、HOLDモードだろうと強制的に見た目をリセットする
             if (!playingNodes[pad.dataset.id]) {
                 pad.classList.remove('purifying'); 
                 clearTimeout(pad.dataset.purifyTimer); 
             }
-            // 音が鳴っているなら、HOLDモードの時は見た目を維持する
             else if (!isHoldMode) {
                 pad.classList.remove('purifying'); 
                 clearTimeout(pad.dataset.purifyTimer); 
@@ -563,7 +584,7 @@
             btn.classList.add('active');
         } else {
             btn.classList.remove('active');
-            stopAllSounds(false); // 全停止
+            stopAllSounds(false); 
         }
     }
 
@@ -577,7 +598,6 @@
             cursor.classList.add('active');
         } else {
             btn.classList.remove('active');
-            // 音のリセットはしない（Latch）
             cursor.classList.remove('active');
         }
     }
@@ -627,7 +647,7 @@
     }
 
     // ==========================================
-    // 4. Advanced Sound Engine (Fixed Logic)
+    // 4. Advanced Sound Engine
     // ==========================================
 
     function triggerSample(id) {
@@ -640,7 +660,7 @@
 
         if (playingNodes[id]) {
             if (sampleData.loop || isHoldMode) {
-                stopSample(id, true); // 再タップで停止
+                stopSample(id, true); 
                 return false; 
             } else {
                 stopSample(id, true);
