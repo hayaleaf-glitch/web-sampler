@@ -465,16 +465,23 @@
     }
 
     function attachEvents(pad) {
+        // ★修正: ゴーストクリック防止用のフラグ
+        let isTouchTriggered = false;
+
         const trigger = (e) => {
-            if(e.cancelable && e.type === 'touchstart') {
-                // e.preventDefault(); 
+            // タッチで発火した場合、フラグを立ててマウスイベントを無視する
+            if (e.type === 'touchstart') {
+                isTouchTriggered = true;
+            } else if (e.type === 'mousedown' && isTouchTriggered) {
+                // ゴーストクリック（タッチ直後のマウスイベント）なら無視してフラグを下ろす
+                isTouchTriggered = false;
+                return;
             }
+
             pad.classList.add('active');
             
-            // ★重要：triggerSampleの戻り値を受け取る（開始したのか、停止したのか）
             const isStarted = triggerSample(pad.dataset.id);
             
-            // 開始した場合のみ、チャージ演出（浄化）タイマーをセット
             if (isStarted) {
                 const purifyTimer = setTimeout(() => {
                     if (pad.classList.contains('active') || isHoldMode) {
@@ -486,12 +493,23 @@
         };
         
         const release = (e) => {
+            // リリース時もゴーストクリックは無視（念のため）
+            if (e.type === 'mouseup' && isTouchTriggered) return;
+
             pad.classList.remove('active'); 
             
-            if (!isHoldMode) {
+            // ★修正: 安全策
+            // 音が止まっていれば（ノードがなければ）、HOLDモードだろうと強制的に見た目をリセットする
+            if (!playingNodes[pad.dataset.id]) {
                 pad.classList.remove('purifying'); 
                 clearTimeout(pad.dataset.purifyTimer); 
             }
+            // 音が鳴っているなら、HOLDモードの時は見た目を維持する
+            else if (!isHoldMode) {
+                pad.classList.remove('purifying'); 
+                clearTimeout(pad.dataset.purifyTimer); 
+            }
+            
             stopSample(pad.dataset.id);
         };
 
@@ -623,7 +641,7 @@
         if (playingNodes[id]) {
             if (sampleData.loop || isHoldMode) {
                 stopSample(id, true); // 再タップで停止
-                return false; // 今回は「停止」だったのでfalseを返す
+                return false; 
             } else {
                 stopSample(id, true);
             }
@@ -646,9 +664,7 @@
         gainNode.gain.setValueAtTime(0, now);
         gainNode.gain.linearRampToValueAtTime(1, now + 0.05);
 
-        // ★修正：押下中は音量を100%に維持する（チャージのみ行う）
-        // フェードアウトのスケジュールは一切行わない
-
+        // 再生中は減衰させない（エネルギーチャージのみ）
         source.start(0);
 
         playingNodes[id] = { 
@@ -658,7 +674,7 @@
         };
 
         document.getElementById(`pad-${id}`).classList.add('playing');
-        return true; // 再生を開始したのでtrue
+        return true; 
     }
 
     function stopSample(id, forceStop = false) {
@@ -667,7 +683,7 @@
         const pad = document.getElementById(`pad-${id}`);
         const sampleData = SYSTEM_DATA.sets[currentSetKey].samples[id];
         
-        // ★修正: HOLDモードなら、指を離しても何もしない（チャージ継続）
+        // HOLDモードなら、指を離しても何もしない（チャージ継続）
         if (!forceStop && isHoldMode) {
             return; 
         }
@@ -685,10 +701,10 @@
         clearTimeout(pad.dataset.purifyTimer);
 
         const now = audioContext.currentTime;
-        const pressDuration = now - node.startTime; // これがチャージ量
+        const pressDuration = now - node.startTime; 
         let releaseTime = DEFAULT_RELEASE;
 
-        // ★修正: チャージ量に応じて、リリース時間（余韻）を決定する
+        // チャージ量に応じたテール計算
         if (pressDuration > LONG_PRESS_THRESHOLD) {
             releaseTime = 0.5 + Math.pow(pressDuration * 0.8, 1.2);
             if (releaseTime > 20) releaseTime = 20; 
