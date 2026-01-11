@@ -3,101 +3,67 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Solosola Set Generator V2</title>
+    <title>Solosola Set Generator V2.1</title>
     <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@100;300;400&display=swap" rel="stylesheet">
     <style>
-        :root {
-            --bg-color: #1a1a1a;
-            --panel-color: #2a2a2a;
-            --text-color: #e0e0e0;
-            --accent-color: #00ccff;
-        }
-
-        body {
-            background-color: var(--bg-color);
-            color: var(--text-color);
-            font-family: 'Helvetica Neue', 'Noto Sans JP', sans-serif;
-            margin: 0;
-            padding: 40px;
-            display: flex; flex-direction: column; align-items: center;
-        }
-
+        :root { --bg-color: #1a1a1a; --panel-color: #2a2a2a; --text-color: #e0e0e0; --accent-color: #00ccff; --warn-color: #ff4444; }
+        body { background-color: var(--bg-color); color: var(--text-color); font-family: 'Helvetica Neue', 'Noto Sans JP', sans-serif; margin: 0; padding: 40px; display: flex; flex-direction: column; align-items: center; }
         h1 { font-weight: 100; letter-spacing: 0.2em; margin-bottom: 30px; }
-
         .container { width: 100%; max-width: 1000px; display: grid; gap: 20px; }
-
         .section { background-color: var(--panel-color); padding: 20px; border-radius: 8px; }
-
         .input-group { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-bottom: 15px; }
-
         label { display: block; font-size: 0.8rem; color: #888; margin-bottom: 5px; }
-
-        input[type="text"] {
-            width: 100%; padding: 10px; background: #111; border: 1px solid #444;
-            color: #fff; border-radius: 4px; box-sizing: border-box;
-        }
-
-        #drop-zone {
-            border: 2px dashed #555; padding: 30px; text-align: center;
-            color: #888; border-radius: 8px; transition: all 0.3s; cursor: pointer;
-        }
+        input[type="text"] { width: 100%; padding: 10px; background: #111; border: 1px solid #444; color: #fff; border-radius: 4px; box-sizing: border-box; }
+        #drop-zone { border: 2px dashed #555; padding: 30px; text-align: center; color: #888; border-radius: 8px; transition: all 0.3s; cursor: pointer; }
         #drop-zone.hover { border-color: var(--accent-color); background-color: rgba(0, 204, 255, 0.1); color: var(--accent-color); }
-
         #sample-list { display: grid; grid-template-columns: 1fr; gap: 8px; }
-
-        .sample-row {
-            background: #222; padding: 10px; border-radius: 4px;
-            display: grid; grid-template-columns: 40px 180px 1fr 100px 80px 40px;
-            gap: 10px; align-items: center; border-left: 3px solid #444;
-        }
+        .sample-row { background: #222; padding: 10px; border-radius: 4px; display: grid; grid-template-columns: 40px 180px 1fr 100px 80px 40px; gap: 10px; align-items: center; border-left: 3px solid #444; }
         .sample-row.filled { border-left-color: var(--accent-color); background: #282828; }
-
         .id-cell { color: #888; font-size: 0.8rem; font-weight: bold; }
         .filename-cell { font-size: 0.7rem; color: #666; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-        
-        select, .file-input-btn {
-            background: #111; color: #fff; border: 1px solid #444; padding: 5px; font-size: 0.8rem;
-        }
-
-        textarea {
-            width: 100%; height: 200px; background: #111; color: #0f0;
-            font-family: monospace; border: 1px solid #444; padding: 15px;
-            box-sizing: border-box; border-radius: 8px; margin-top: 10px;
-        }
-
-        button.primary {
-            background-color: var(--accent-color); color: #000; border: none;
-            padding: 15px; font-size: 1rem; font-weight: bold; border-radius: 4px;
-            cursor: pointer; width: 100%;
-        }
-
-        .clear-btn { color: #866; cursor: pointer; font-size: 0.7rem; text-align: center; }
+        select, .file-input-btn { background: #111; color: #fff; border: 1px solid #444; padding: 5px; font-size: 0.8rem; }
+        textarea { width: 100%; height: 200px; background: #111; color: #0f0; font-family: monospace; border: 1px solid #444; padding: 15px; box-sizing: border-box; border-radius: 8px; margin-top: 10px; white-space: pre; overflow-x: auto; }
+        .btn-group { display: flex; gap: 10px; }
+        button.primary { flex: 2; background-color: var(--accent-color); color: #000; border: none; padding: 15px; font-size: 1rem; font-weight: bold; border-radius: 4px; cursor: pointer; }
+        button.secondary { flex: 1; background-color: #444; color: #fff; border: none; padding: 15px; font-size: 1rem; font-weight: bold; border-radius: 4px; cursor: pointer; }
+        button:hover { opacity: 0.9; }
+        .clear-btn { color: var(--warn-color); cursor: pointer; font-size: 0.7rem; text-align: center; }
+        .note { font-size: 0.7rem; color: #666; margin-top: 5px; }
     </style>
 </head>
 <body>
 
-    <h1>SOLOSOLA SET GENERATOR</h1>
+    <h1>SOLOSOLA SET GENERATOR <span style="font-size:0.5em; opacity:0.5;">v2.1</span></h1>
 
     <div class="container">
         <div class="section">
             <div class="input-group">
-                <div><label>セットID</label><input type="text" id="set-id" placeholder="shibuya-night"></div>
-                <div><label>セット名</label><input type="text" id="set-name" placeholder="東京・渋谷"></div>
+                <div><label>セットID (JSON Key)</label><input type="text" id="set-id" placeholder="shibuya-night"></div>
+                <div><label>セット名 (表示用)</label><input type="text" id="set-name" placeholder="東京・渋谷"></div>
             </div>
             <div class="input-group">
                 <div><label>制作者名</label><input type="text" id="recorder" placeholder="Recorded by Solosola"></div>
-                <div><label>背景画像URL (ファイル名だけでも可)</label><input type="text" id="image-url" placeholder="bg.jpg"></div>
+                <div><label>背景画像URL</label><input type="text" id="image-url" placeholder="bg.jpg"></div>
+            </div>
+            <div>
+                <label>オーディオ格納パス (末尾に / をつけてください)</label>
+                <input type="text" id="base-path" value="assets/audio/" placeholder="assets/audio/">
+                <div class="note">※ファイル名が自動的にこのパスの後ろに結合されます。</div>
             </div>
         </div>
 
         <div id="drop-zone">
-            ここに音声ファイルをまとめてドロップ（空いている枠に順次追加されます）
+            ここに音声ファイルをまとめてドロップ<br>
+            <span style="font-size:0.8rem">(空いているスロットに上から順に割り当てられます)</span>
         </div>
 
         <div id="sample-list"></div>
 
-        <button class="primary" onclick="generateJson()">GENERATE JSON</button>
-        <textarea id="output-area" readonly placeholder="生成されたJSONがここに表示されます"></textarea>
+        <div class="btn-group">
+            <button class="primary" onclick="generateJson()">GENERATE JSON</button>
+            <button class="secondary" onclick="copyToClipboard()">COPY</button>
+        </div>
+        <textarea id="output-area" readonly placeholder="ここにJSONが出力されます"></textarea>
     </div>
 
     <script>
@@ -115,16 +81,16 @@
                     <div class="id-cell">PAD${i+1}</div>
                     <div>
                         <input type="file" id="file-${i}" style="display:none" accept="audio/*" onchange="handleFileSelect(${i}, this)">
-                        <button class="file-input-btn" onclick="document.getElementById('file-${i}').click()">ファイル選択</button>
-                        <div class="filename-cell" title="${s.filename}">${s.filename || 'no file'}</div>
+                        <button class="file-input-btn" onclick="document.getElementById('file-${i}').click()">FILE</button>
+                        <div class="filename-cell" title="${s.filename}">${s.filename || '---'}</div>
                     </div>
                     <input type="text" placeholder="表示名" value="${s.label}" oninput="updateData(${i}, 'label', this.value)">
                     <select onchange="updateData(${i}, 'mode', this.value)">
                         <option value="gate" ${s.mode === 'gate' ? 'selected' : ''}>Gate(長押)</option>
                         <option value="oneshot" ${s.mode === 'oneshot' ? 'selected' : ''}>One(1回)</option>
                     </select>
-                    <label style="font-size:0.7rem;"><input type="checkbox" ${s.loop ? 'checked' : ''} onchange="updateData(${i}, 'loop', this.checked)"> Loop</label>
-                    <div class="clear-btn" onclick="clearSlot(${i})">×消去</div>
+                    <label style="font-size:0.7rem; cursor:pointer;"><input type="checkbox" ${s.loop ? 'checked' : ''} onchange="updateData(${i}, 'loop', this.checked)"> Loop</label>
+                    <div class="clear-btn" onclick="clearSlot(${i})">×</div>
                 `;
                 listEl.appendChild(row);
             });
@@ -140,10 +106,17 @@
         function handleFileSelect(i, input) {
             if (input.files && input.files[0]) {
                 const file = input.files[0];
-                samplesData[i].filename = file.name;
-                if(!samplesData[i].label) samplesData[i].label = file.name.replace(/\.[^/.]+$/, "");
-                renderList();
+                assignFile(i, file);
             }
+        }
+
+        function assignFile(i, file) {
+            samplesData[i].filename = file.name;
+            // 拡張子を除去してラベルの初期値にする
+            if(!samplesData[i].label) {
+                samplesData[i].label = file.name.replace(/\.[^/.]+$/, "");
+            }
+            renderList();
         }
 
         const dropZone = document.getElementById('drop-zone');
@@ -154,33 +127,56 @@
             dropZone.classList.remove('hover');
             const files = Array.from(e.dataTransfer.files).filter(f => f.type.startsWith('audio/'));
             
-            // 空いているスロットを探して順次入れる
             let fileIdx = 0;
+            // 空きスロットを探して埋める
             for (let i = 0; i < 16 && fileIdx < files.length; i++) {
                 if (!samplesData[i].filename) {
-                    samplesData[i].filename = files[fileIdx].name;
-                    samplesData[i].label = files[fileIdx].name.replace(/\.[^/.]+$/, "");
+                    assignFile(i, files[fileIdx]);
                     fileIdx++;
                 }
             }
-            renderList();
         });
 
         function generateJson() {
             const setId = document.getElementById('set-id').value || 'new-set';
-            const res = {
-                [setId]: {
-                    name: document.getElementById('set-name').value || 'New Set',
-                    recorder: document.getElementById('recorder').value || 'Unknown',
-                    image: document.getElementById('image-url').value || '',
-                    samples: samplesData.map(s => ({
-                        id: s.id, url: "assets/audio/" + s.filename, // フォルダパスを自動付与
-                        label: s.label || "Sound " + s.id,
-                        mode: s.mode, loop: s.loop
-                    }))
-                }
+            const setName = document.getElementById('set-name').value || 'New Set';
+            const recorder = document.getElementById('recorder').value || 'Unknown';
+            const imageUrl = document.getElementById('image-url').value || '';
+            let basePath = document.getElementById('base-path').value || 'assets/audio/';
+            
+            // パスの末尾にスラッシュが無ければ付与する安全策
+            if (!basePath.endsWith('/')) basePath += '/';
+
+            // データオブジェクト構築
+            const setObj = {
+                name: setName,
+                recorder: recorder,
+                image: imageUrl,
+                samples: samplesData.map(s => ({
+                    id: s.id,
+                    url: s.filename ? (basePath + s.filename) : "", // 空の場合はURLも空に
+                    label: s.label || `Sound ${s.id + 1}`,
+                    mode: s.mode,
+                    loop: s.loop
+                }))
             };
-            document.getElementById('output-area').value = JSON.stringify(res, null, 2) + ",";
+
+            // JSON文字列化（整形付き）
+            const jsonBody = JSON.stringify(setObj, null, 4);
+            
+            // 全体を data.json の形式に合わせて包む（Key + Body）
+            const output = `"${setId}": ${jsonBody},`;
+
+            document.getElementById('output-area').value = output;
+        }
+
+        function copyToClipboard() {
+            const copyText = document.getElementById("output-area");
+            copyText.select();
+            copyText.setSelectionRange(0, 99999); 
+            navigator.clipboard.writeText(copyText.value).then(() => {
+                alert("Copied to clipboard!");
+            });
         }
 
         renderList();
