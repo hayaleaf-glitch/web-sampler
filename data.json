@@ -9,6 +9,11 @@
       "id": "cat-nature",
       "label": "NATURE",
       "sets": ["soundscape-forest"]
+    },
+    {
+      "id": "cat-test",
+      "label": "TEST",
+      "sets": ["test-20260111"]
     }
   ],
   "sets": {
@@ -56,6 +61,29 @@
         { "id": 13, "url": "samplen.mp3", "label": "飛翔", "mode": "gate", "loop": false },
         { "id": 14, "url": "sampleo.mp3", "label": "雫音", "mode": "gate", "loop": false },
         { "id": 15, "url": "samplep.mp3", "label": "空白", "mode": "gate", "loop": false }
+      ]
+    },
+    "test-20260111": {
+      "name": "テスト2026/01/11",
+      "recorder": "Unknown",
+      "image": "IMGP6128-2.jpg",
+      "samples": [
+        { "id": 0, "url": "assets/audio/Proj5_1-02 New Sample.WAV", "label": "Proj5_1-02 New Sample", "mode": "oneshot", "loop": false },
+        { "id": 1, "url": "assets/audio/Proj5_1-03 New Sample.WAV", "label": "Proj5_1-03 New Sample", "mode": "oneshot", "loop": false },
+        { "id": 2, "url": "assets/audio/Proj5_1-04 New Sample.WAV", "label": "Proj5_1-04 New Sample", "mode": "oneshot", "loop": false },
+        { "id": 3, "url": "assets/audio/Proj5_1-05 New Sample.WAV", "label": "Proj5_1-05 New Sample", "mode": "oneshot", "loop": false },
+        { "id": 4, "url": "assets/audio/Proj5_1-06 New Sample.WAV", "label": "Proj5_1-06 New Sample", "mode": "oneshot", "loop": false },
+        { "id": 5, "url": "assets/audio/Proj5_1-07 New Sample.WAV", "label": "Proj5_1-07 New Sample", "mode": "gate", "loop": false },
+        { "id": 6, "url": "assets/audio/Proj5_1-11 Looper Sample.WAV", "label": "Proj5_1-11 Looper Sample", "mode": "gate", "loop": true },
+        { "id": 7, "url": "assets/audio/Proj1_9-13 I-13.WAV", "label": "Proj1_9-13 I-13", "mode": "oneshot", "loop": false },
+        { "id": 8, "url": "assets/audio/Proj1_1-06 Wasteland River.WAV", "label": "Proj1_1-06 Wasteland River", "mode": "gate", "loop": true },
+        { "id": 9, "url": "assets/audio/Proj1_1-07 Furueru Tokei.WAV", "label": "Proj1_1-07 Furueru Tokei", "mode": "gate", "loop": true },
+        { "id": 10, "url": "assets/audio/Proj1_1-08 Tsugai no kamo.WAV", "label": "Proj1_1-08 Tsugai no kamo", "mode": "gate", "loop": true },
+        { "id": 11, "url": "assets/audio/Proj1_1-09 Looper Sample.WAV", "label": "Proj1_1-09 Looper Sample", "mode": "gate", "loop": true },
+        { "id": 12, "url": "assets/audio/Proj1_1-11 Looper Sample.WAV", "label": "Proj1_1-11 Looper Sample", "mode": "gate", "loop": true },
+        { "id": 13, "url": "assets/audio/Proj1_1-12 New Sample.WAV", "label": "Proj1_1-12 New Sample", "mode": "gate", "loop": false },
+        { "id": 14, "url": "assets/audio/Proj1_2-16 New Sample.WAV", "label": "Proj1_2-16 New Sample", "mode": "gate", "loop": false },
+        { "id": 15, "url": "assets/audio/Proj1_2-05              407.WAV", "label": "Proj1_2-05              407", "mode": "gate", "loop": false }
       ]
     }
   }
