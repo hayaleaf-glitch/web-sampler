@@ -107,15 +107,18 @@
             filter: brightness(1.0) grayscale(0.2); 
         }
 
+        /* 物理的に押している時 */
         .pad.active {
             filter: brightness(1.4) grayscale(0); 
             z-index: 2;
         }
         
+        /* 再生中（指を離しても） */
         .pad.playing {
             filter: brightness(1.1) grayscale(0.1);
         }
 
+        /* チャージ中（長押し or HOLD中） */
         .pad.purifying {
             animation: purify-pulse 4s infinite alternate;
             z-index: 3;
@@ -323,7 +326,6 @@
     
     const DEFAULT_RELEASE = 0.5;   
     const LONG_PRESS_THRESHOLD = 0.4; 
-    const DISSIPATE_DURATION = 30.0;  
 
     function initAudioContext() {
         if (audioContext) return;
@@ -464,13 +466,12 @@
 
     function attachEvents(pad) {
         const trigger = (e) => {
-            if(e.cancelable && e.type === 'touchstart') {
-                // e.preventDefault(); // スクロール阻害しない
-            }
             pad.classList.add('active');
             triggerSample(pad.dataset.id);
             
+            // チャージ演出（0.4秒後に暗くなり始める）
             const purifyTimer = setTimeout(() => {
+                // HOLD中、または物理的に押下中なら浄化演出開始
                 if (pad.classList.contains('active') || isHoldMode) {
                     pad.classList.add('purifying');
                 }
@@ -481,6 +482,8 @@
         const release = (e) => {
             pad.classList.remove('active'); 
             
+            // HOLDモードではない時のみ、指を離したら浄化演出を消す
+            // HOLDモード時は、指を離しても浄化演出（チャージ中）を維持する
             if (!isHoldMode) {
                 pad.classList.remove('purifying'); 
                 clearTimeout(pad.dataset.purifyTimer); 
@@ -538,11 +541,10 @@
             btn.classList.add('active');
         } else {
             btn.classList.remove('active');
-            stopAllSounds(false); 
+            stopAllSounds(false); // 全停止（浄化演出もリセット）
         }
     }
 
-    // ★ 修正: FXモード切替（リセット処理を削除）
     function toggleFxMode() {
         isFxMode = !isFxMode;
         const btn = document.getElementById('fx-btn');
@@ -550,14 +552,10 @@
         
         if (isFxMode) {
             btn.classList.add('active');
-            // 初期位置に戻さない（前回の位置のままにするか、真ん中に出すかは好みだが、
-            // 操作しやすくするために、前回値がない場合は真ん中に戻る）
-            // ここではあえて updateFxParams を呼ばず、現状維持させる
             cursor.classList.add('active');
         } else {
             btn.classList.remove('active');
-            // ★ リセット処理を削除したので、エフェクトはかかり続ける
-            // カーソルだけ消す
+            // 音のリセットはしない（Latch）
             cursor.classList.remove('active');
         }
     }
@@ -607,7 +605,7 @@
     }
 
     // ==========================================
-    // 4. Advanced Sound Engine
+    // 4. Advanced Sound Engine (Fixed Logic)
     // ==========================================
 
     function triggerSample(id) {
@@ -619,7 +617,6 @@
         if (!buffer) return;
 
         if (playingNodes[id]) {
-            // HOLD中またはLoopの再タップは停止
             if (sampleData.loop || isHoldMode) {
                 stopSample(id, true); 
                 return;
@@ -645,10 +642,9 @@
         gainNode.gain.setValueAtTime(0, now);
         gainNode.gain.linearRampToValueAtTime(1, now + 0.05);
 
-        // ★ 浄化スケジュール（通常通りセットする）
-        // ただし、HOLD中の短押しの場合は、stopSampleでこれをキャンセルする
-        gainNode.gain.setValueAtTime(1, now + 0.45);
-        gainNode.gain.linearRampToValueAtTime(0, now + 0.45 + DISSIPATE_DURATION);
+        // ★修正: 再生中は減衰させない（エネルギーチャージのみ）
+        // 以前の linearRampToValueAtTime(0, ...) を削除
+        // 100%のまま維持する
 
         source.start(0);
 
@@ -665,26 +661,12 @@
         const node = playingNodes[id];
         if (!node) return;
         const pad = document.getElementById(`pad-${id}`);
-
         const sampleData = SYSTEM_DATA.sets[currentSetKey].samples[id];
         
-        const now = audioContext.currentTime;
-        const pressDuration = now - node.startTime;
-
-        // ★ HOLDロジックの大修正
-        // 強制停止(再タップ)でない場合
+        // ★修正: HOLDモード時の処理
         if (!forceStop && isHoldMode) {
-            // 短押し（閾値未満）の場合 -> 浄化スケジュールをキャンセルして音量MAX維持
-            if (pressDuration < LONG_PRESS_THRESHOLD) {
-                node.gain.gain.cancelScheduledValues(now);
-                node.gain.gain.setValueAtTime(1, now); // 音量を1に戻す（維持する）
-                
-                // 視覚的にも浄化を消す
-                pad.classList.remove('purifying');
-                clearTimeout(pad.dataset.purifyTimer);
-            }
-            // 長押し（閾値以上）の場合 -> すでに浄化（減衰）が始まっているので、そのまま放置（リターン）
-            // これにより、長押しして離した後も減衰が続く（＝浄化完了）
+            // HOLD中は、指を離しても「処理をしない（音は鳴り続ける）」
+            // 視覚的には .purifying が残り、チャージが継続しているように見える
             return; 
         }
 
@@ -696,15 +678,18 @@
             return; 
         }
         
-        // ここに来るのは「音を止める」時
+        // ここに来るのは「本当に音を止める」時（リリース処理開始）
         pad.classList.remove('purifying');
         clearTimeout(pad.dataset.purifyTimer);
 
+        const now = audioContext.currentTime;
+        const pressDuration = now - node.startTime; // ここまでの時間がチャージ量
         let releaseTime = DEFAULT_RELEASE;
 
+        // ★修正: チャージ時間に応じたテール計算
         if (pressDuration > LONG_PRESS_THRESHOLD) {
             releaseTime = 0.5 + Math.pow(pressDuration * 0.8, 1.2);
-            if (releaseTime > 20) releaseTime = 20;
+            if (releaseTime > 20) releaseTime = 20; // 最大20秒
         }
 
         node.gain.gain.cancelScheduledValues(now);
