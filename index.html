@@ -466,24 +466,28 @@
 
     function attachEvents(pad) {
         const trigger = (e) => {
+            if(e.cancelable && e.type === 'touchstart') {
+                // e.preventDefault(); 
+            }
             pad.classList.add('active');
-            triggerSample(pad.dataset.id);
             
-            // チャージ演出（0.4秒後に暗くなり始める）
-            const purifyTimer = setTimeout(() => {
-                // HOLD中、または物理的に押下中なら浄化演出開始
-                if (pad.classList.contains('active') || isHoldMode) {
-                    pad.classList.add('purifying');
-                }
-            }, LONG_PRESS_THRESHOLD * 1000);
-            pad.dataset.purifyTimer = purifyTimer;
+            // ★重要：triggerSampleの戻り値を受け取る（開始したのか、停止したのか）
+            const isStarted = triggerSample(pad.dataset.id);
+            
+            // 開始した場合のみ、チャージ演出（浄化）タイマーをセット
+            if (isStarted) {
+                const purifyTimer = setTimeout(() => {
+                    if (pad.classList.contains('active') || isHoldMode) {
+                        pad.classList.add('purifying');
+                    }
+                }, LONG_PRESS_THRESHOLD * 1000);
+                pad.dataset.purifyTimer = purifyTimer;
+            }
         };
         
         const release = (e) => {
             pad.classList.remove('active'); 
             
-            // HOLDモードではない時のみ、指を離したら浄化演出を消す
-            // HOLDモード時は、指を離しても浄化演出（チャージ中）を維持する
             if (!isHoldMode) {
                 pad.classList.remove('purifying'); 
                 clearTimeout(pad.dataset.purifyTimer); 
@@ -541,7 +545,7 @@
             btn.classList.add('active');
         } else {
             btn.classList.remove('active');
-            stopAllSounds(false); // 全停止（浄化演出もリセット）
+            stopAllSounds(false); // 全停止
         }
     }
 
@@ -614,12 +618,12 @@
 
         const sampleData = SYSTEM_DATA.sets[currentSetKey].samples[id];
         const buffer = audioBuffers[parseInt(id)];
-        if (!buffer) return;
+        if (!buffer) return false;
 
         if (playingNodes[id]) {
             if (sampleData.loop || isHoldMode) {
-                stopSample(id, true); 
-                return;
+                stopSample(id, true); // 再タップで停止
+                return false; // 今回は「停止」だったのでfalseを返す
             } else {
                 stopSample(id, true);
             }
@@ -642,9 +646,8 @@
         gainNode.gain.setValueAtTime(0, now);
         gainNode.gain.linearRampToValueAtTime(1, now + 0.05);
 
-        // ★修正: 再生中は減衰させない（エネルギーチャージのみ）
-        // 以前の linearRampToValueAtTime(0, ...) を削除
-        // 100%のまま維持する
+        // ★修正：押下中は音量を100%に維持する（チャージのみ行う）
+        // フェードアウトのスケジュールは一切行わない
 
         source.start(0);
 
@@ -655,6 +658,7 @@
         };
 
         document.getElementById(`pad-${id}`).classList.add('playing');
+        return true; // 再生を開始したのでtrue
     }
 
     function stopSample(id, forceStop = false) {
@@ -663,10 +667,8 @@
         const pad = document.getElementById(`pad-${id}`);
         const sampleData = SYSTEM_DATA.sets[currentSetKey].samples[id];
         
-        // ★修正: HOLDモード時の処理
+        // ★修正: HOLDモードなら、指を離しても何もしない（チャージ継続）
         if (!forceStop && isHoldMode) {
-            // HOLD中は、指を離しても「処理をしない（音は鳴り続ける）」
-            // 視覚的には .purifying が残り、チャージが継続しているように見える
             return; 
         }
 
@@ -683,13 +685,13 @@
         clearTimeout(pad.dataset.purifyTimer);
 
         const now = audioContext.currentTime;
-        const pressDuration = now - node.startTime; // ここまでの時間がチャージ量
+        const pressDuration = now - node.startTime; // これがチャージ量
         let releaseTime = DEFAULT_RELEASE;
 
-        // ★修正: チャージ時間に応じたテール計算
+        // ★修正: チャージ量に応じて、リリース時間（余韻）を決定する
         if (pressDuration > LONG_PRESS_THRESHOLD) {
             releaseTime = 0.5 + Math.pow(pressDuration * 0.8, 1.2);
-            if (releaseTime > 20) releaseTime = 20; // 最大20秒
+            if (releaseTime > 20) releaseTime = 20; 
         }
 
         node.gain.gain.cancelScheduledValues(now);
@@ -725,12 +727,14 @@
         if (pad && !pressedKeys.has(key)) {
             pressedKeys.add(key);
             pad.classList.add('active');
-            triggerSample(pad.dataset.id);
+            const isStarted = triggerSample(pad.dataset.id);
             
-            const purifyTimer = setTimeout(() => {
-                if (pressedKeys.has(key) || isHoldMode) pad.classList.add('purifying');
-            }, LONG_PRESS_THRESHOLD * 1000);
-            pad.dataset.purifyTimer = purifyTimer;
+            if (isStarted) {
+                const purifyTimer = setTimeout(() => {
+                    if (pressedKeys.has(key) || isHoldMode) pad.classList.add('purifying');
+                }, LONG_PRESS_THRESHOLD * 1000);
+                pad.dataset.purifyTimer = purifyTimer;
+            }
         }
     });
 
