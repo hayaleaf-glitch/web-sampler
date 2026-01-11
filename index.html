@@ -19,6 +19,8 @@
         :root {
             --bg-color: #111111;
             --text-color: #ffffff;
+            --accent-color: #ffffff;
+            --hold-active-color: #ff9900; /* HOLDオン時の色 */
             --transition-speed: 0.6s;
         }
 
@@ -45,8 +47,8 @@
            ========================================= */
         #meta-display {
             position: absolute;
-            top: calc(40px + env(safe-area-inset-top));
-            left: 40px;
+            top: calc(30px + env(safe-area-inset-top));
+            left: 30px;
             z-index: 10;
             pointer-events: none;
             opacity: 0;
@@ -98,33 +100,20 @@
             background-size: 400% 400%;
             background-repeat: no-repeat;
             cursor: pointer;
-            
-            -webkit-touch-callout: none;
-            -webkit-user-select: none;
-            user-select: none;
             -webkit-tap-highlight-color: transparent;
-
             filter: brightness(1.0) grayscale(0.2); 
             transition: filter 0.05s ease-out;
         }
 
-        .pad::after {
-            content: '';
-            position: absolute;
-            top: 0; left: 0; right: 0; bottom: 0;
-            background-color: var(--text-color);
-            opacity: 0;
-            transition: opacity 0.05s ease-out;
-            pointer-events: none;
-        }
-
+        /* アクティブ時の光 */
         .pad.active {
-            filter: brightness(1.2) grayscale(0);
+            filter: brightness(1.3) grayscale(0);
             z-index: 1;
         }
-
-        .pad.active::after {
-            opacity: 0.15;
+        
+        /* 鳴っている最中（指を離しても）の表示 */
+        .pad.playing {
+            filter: brightness(1.1) grayscale(0.1);
         }
 
         .pad-label {
@@ -134,16 +123,49 @@
             font-size: 0.6rem;
             opacity: 0.5;
             font-weight: 100;
-            text-shadow: 0 1px 2px rgba(0,0,0,0.8);
             pointer-events: none;
         }
 
         /* =========================================
-           Menu System (New: Scrollable & Categories)
+           Control Bar (HOLD Button) - NEW Phase 3.6
+           ========================================= */
+        #control-bar {
+            width: 100%;
+            max-width: 600px;
+            display: flex;
+            justify-content: center;
+            margin-top: 15px;
+            opacity: 0;
+            transition: opacity 1s ease;
+            z-index: 25;
+        }
+
+        .control-btn {
+            border: 1px solid var(--text-color);
+            padding: 5px 20px;
+            font-size: 0.8rem;
+            letter-spacing: 0.2em;
+            color: var(--text-color);
+            background: transparent;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            opacity: 0.6;
+        }
+
+        .control-btn.active {
+            background: var(--text-color);
+            color: var(--bg-color);
+            opacity: 1;
+            font-weight: 400;
+            box-shadow: 0 0 10px rgba(255,255,255,0.3);
+        }
+
+        /* =========================================
+           Menu System
            ========================================= */
         #menu-container {
             position: absolute;
-            bottom: calc(50px + env(safe-area-inset-bottom));
+            bottom: calc(30px + env(safe-area-inset-bottom));
             display: flex;
             flex-direction: column;
             align-items: center;
@@ -151,11 +173,10 @@
             z-index: 20;
             opacity: 0;
             transition: opacity 1s ease;
-            width: 100%; /* 全幅を使う */
+            width: 100%;
             max-width: 600px;
         }
 
-        /* カテゴリメニュー（上段） */
         #category-menu {
             display: flex;
             gap: 20px;
@@ -170,33 +191,21 @@
         }
         .category-item.active { opacity: 1; text-decoration: underline; }
 
-        /* セットメニュー（下段・横スクロール） */
         #set-menu {
             display: flex;
             gap: 30px;
-            overflow-x: auto; /* 横スクロール有効 */
-            white-space: nowrap; /* 折り返し禁止 */
-            padding: 0 40px; /* 左右に余白 */
+            overflow-x: auto;
+            white-space: nowrap;
+            padding: 0 40px;
             width: 100%;
             box-sizing: border-box;
-            
-            /* スクロールバーを隠す */
             -ms-overflow-style: none;
             scrollbar-width: none;
-            /* iOS慣性スクロール */
             -webkit-overflow-scrolling: touch;
-            
-            /* 中央寄せっぽく見せるためのフレックス調整 */
             justify-content: flex-start; 
         }
         #set-menu::-webkit-scrollbar { display: none; }
-
-        /* セット名の後に余白を作る（最後の要素が見切れないように） */
-        #set-menu::after {
-            content: '';
-            min-width: 20px;
-            height: 1px;
-        }
+        #set-menu::after { content: ''; min-width: 20px; height: 1px; }
 
         .menu-item {
             cursor: pointer;
@@ -205,27 +214,13 @@
             opacity: 0.4;
             transition: all 0.4s ease;
             position: relative;
-            flex-shrink: 0; /* 縮まないようにする */
+            flex-shrink: 0;
             -webkit-tap-highlight-color: transparent;
         }
-
-        .menu-item::after {
-            content: '';
-            position: absolute;
-            width: 0%;
-            height: 1px;
-            bottom: -5px;
-            left: 50%;
-            background-color: var(--text-color);
-            transition: all 0.4s ease;
-            transform: translateX(-50%);
-        }
-
-        .menu-item:hover, .menu-item.active {
-            opacity: 1;
-        }
+        .menu-item.active { opacity: 1; }
         .menu-item.active::after {
-            width: 100%;
+            content: ''; position: absolute; width: 100%; height: 1px;
+            bottom: -5px; left: 0; background-color: var(--text-color);
         }
 
         #loading-indicator {
@@ -235,11 +230,8 @@
             opacity: 0.7;
             animation: blink 1.5s infinite;
         }
+        @keyframes blink { 0%, 100% { opacity: 0.3; } 50% { opacity: 1; } }
 
-        @keyframes blink {
-            0%, 100% { opacity: 0.3; }
-            50% { opacity: 1; }
-        }
     </style>
 </head>
 <body>
@@ -255,11 +247,13 @@
         <div id="sampler-container"></div>
     </div>
 
+    <div id="control-bar">
+        <div id="hold-btn" class="control-btn" onclick="toggleHoldMode()">HOLD</div>
+    </div>
+
     <div id="menu-container">
-        <div id="category-menu">
-            </div>
-        <div id="set-menu">
-            </div>
+        <div id="category-menu"></div>
+        <div id="set-menu"></div>
     </div>
 
     <script>
@@ -269,18 +263,27 @@
     const BASE_URL = "https://hayaleaf-glitch.github.io/web-sampler/";
     const DATA_URL = "./data.json"; 
     
-    let SYSTEM_DATA = {}; // 全データ
+    let SYSTEM_DATA = {}; 
     let currentCategory = null;
-    let currentSetKey = null; // 初期値はロード後に決定
+    let currentSetKey = null;
 
     // ==========================================
-    // 2. Audio Core
+    // 2. Audio Core (Refactored for Phase 3.6)
     // ==========================================
     let audioContext;
     const audioBuffers = new Array(16);
-    const playingNodes = {};
+    
+    // 再生中のノードを管理するオブジェクト
+    // 構造: { [id]: { source: AudioBufferSourceNode, gain: GainNode } }
+    const playingNodes = {}; 
+
+    let isHoldMode = false; // HOLDモードの状態
+    
     const pressedKeys = new Set();
     const keyMap = ['7','8','9','0', 'u','i','o','p', 'j','k','l',';', 'm',',','.','/'];
+    
+    // デフォルトのリリース時間（秒）
+    const DEFAULT_RELEASE_TIME = 0.5;
 
     function initAudioContext() {
         if (audioContext) return;
@@ -292,57 +295,41 @@
     }
 
     // ==========================================
-    // 3. Logic: Data Loading & Rendering
+    // 3. Logic: Data & UI
     // ==========================================
 
     async function loadSystemData() {
         try {
             const response = await fetch(DATA_URL);
             if (!response.ok) throw new Error(`Data load failed: ${response.status}`);
-            
             SYSTEM_DATA = await response.json();
             
-            // 初期カテゴリとセットを決定
             if (SYSTEM_DATA.categories && SYSTEM_DATA.categories.length > 0) {
-                // 最初のカテゴリを選択
                 selectCategory(SYSTEM_DATA.categories[0].id);
-            } else {
-                // カテゴリがない場合のフォールバック（旧仕様対策）
-                console.error("Invalid Data Structure");
             }
-            
             initializeInterface();
         } catch (error) {
-            console.error("Critical Error:", error);
+            console.error(error);
             document.getElementById('loading-indicator').textContent = "SYSTEM ERROR";
         }
     }
 
-    // カテゴリ選択時の処理
     function selectCategory(catId) {
         currentCategory = catId;
         const categoryData = SYSTEM_DATA.categories.find(c => c.id === catId);
-        
-        // カテゴリUIの更新
         renderCategoryMenu();
-        
-        // セットメニューの更新（そのカテゴリに属するセットのみ表示）
         renderSetMenu(categoryData.sets);
         
-        // そのカテゴリの最初のセットを自動選択（初回ロード時やカテゴリ切り替え時）
         if (categoryData.sets.length > 0) {
-            // 既に選択中のセットがこのカテゴリに含まれていれば維持、そうでなければ先頭へ
             if (!categoryData.sets.includes(currentSetKey)) {
                 changeSamplerSet(categoryData.sets[0]);
             }
         }
     }
 
-    // カテゴリメニュー描画
     function renderCategoryMenu() {
         const catMenu = document.getElementById('category-menu');
         catMenu.innerHTML = '';
-        
         SYSTEM_DATA.categories.forEach(cat => {
             const el = document.createElement('div');
             el.className = `category-item ${cat.id === currentCategory ? 'active' : ''}`;
@@ -352,26 +339,14 @@
         });
     }
 
-    // セットメニュー描画（横スクロール対応）
     function renderSetMenu(setIds) {
         const setMenu = document.getElementById('set-menu');
         setMenu.innerHTML = '';
-        
         setIds.forEach(setId => {
             const setData = SYSTEM_DATA.sets[setId];
             if (!setData) return;
-
             const el = document.createElement('div');
-            // 表示名は短縮（TOKYOなど）にするか、そのままか。今回はnameを使うが、
-            // 将来的にはshort_nameをJSONに追加しても良い。
-            // ここでは簡易的にスペース区切りの最初の単語などを表示するなどの処理も可能だが、
-            // 一旦そのまま表示する。
-            // CSSで折り返さない設定にしているため、長くても横スクロールできる。
-            
-            // 表示用の名前を生成（英語部分だけ抜き出すなど工夫可能だが、今はそのまま）
-            // メニューには少し短めの名前がいいので、ラベル用のデータがない場合はnameを使う
-            el.textContent = setData.name.split('・')[0] || setData.name; // 「東京・渋谷」なら「東京」だけ表示してみる工夫
-            
+            el.textContent = setData.name.split('・')[0] || setData.name; 
             el.className = `menu-item ${setId === currentSetKey ? 'active' : ''}`;
             el.onclick = () => changeSamplerSet(setId);
             setMenu.appendChild(el);
@@ -380,11 +355,10 @@
 
     async function initializeInterface() {
         document.getElementById('loading-indicator').style.display = 'none';
-
         document.getElementById('sampler-wrapper').style.opacity = 1;
         document.getElementById('meta-display').style.opacity = 1;
         document.getElementById('menu-container').style.opacity = 1;
-
+        document.getElementById('control-bar').style.opacity = 1; // HOLDボタン表示
         initAudioContext();
     }
 
@@ -395,6 +369,7 @@
         for (let i = 0; i < 16; i++) {
             const pad = document.createElement('div');
             pad.className = 'pad';
+            pad.id = `pad-${i}`; // ID付与（状態管理用）
             pad.dataset.id = i;
             pad.dataset.key = keyMap[i];
 
@@ -416,21 +391,16 @@
         }
     }
 
-    function updateMeta(data) {
-        document.getElementById('place-name').textContent = data.name;
-        document.getElementById('recorder-name').textContent = data.recorder;
-    }
-
     function attachEvents(pad) {
         const trigger = (e) => {
             if(e.cancelable && e.type === 'touchstart') e.preventDefault();
-            pad.classList.add('active');
+            pad.classList.add('active'); // 押した瞬間の視覚効果
             triggerSample(pad.dataset.id);
         };
         
         const release = (e) => {
             if(e.cancelable && e.type === 'touchend') e.preventDefault();
-            pad.classList.remove('active');
+            pad.classList.remove('active'); // 指を離した
             stopSample(pad.dataset.id);
         };
 
@@ -445,9 +415,7 @@
     async function preloadAllSamples() {
         const currentSetData = SYSTEM_DATA.sets[currentSetKey];
         if (!currentSetData) return;
-
         audioBuffers.fill(null);
-
         const loadPromises = currentSetData.samples.map(async (sample) => {
             if (!sample.url) return;
             try {
@@ -456,39 +424,29 @@
                 if(audioContext) {
                     audioBuffers[sample.id] = await audioContext.decodeAudioData(arrayBuffer);
                 }
-            } catch (error) {
-                // Ignore missing samples
-            }
+            } catch (error) { }
         });
-
         await Promise.all(loadPromises);
     }
 
     async function changeSamplerSet(setKey) {
         if (currentSetKey === setKey || !SYSTEM_DATA.sets[setKey]) return;
-        
         if (!audioContext) initAudioContext();
 
-        const container = document.getElementById('sampler-container');
-        const meta = document.getElementById('meta-display');
-        
-        container.style.opacity = 0;
-        meta.style.opacity = 0;
+        // 停止処理
+        stopAllSounds(true); // 強制停止
 
-        Object.keys(playingNodes).forEach(id => stopSample(id));
+        const container = document.getElementById('sampler-container');
+        container.style.opacity = 0;
 
         await new Promise(r => setTimeout(r, 600)); 
 
         currentSetKey = setKey;
         const newData = SYSTEM_DATA.sets[setKey];
-
-        updateMeta(newData);
         
-        // メニューのハイライト更新
-        const menuItems = document.querySelectorAll('#set-menu .menu-item');
-        // 再描画したほうが早いが、今回はclass制御で対応
-        // Note: カテゴリ切り替え時にrenderSetMenuが走るので、ここでは簡易的なclass付替は難しい。
-        // なので、renderSetMenuを呼んでしまうのが確実。
+        document.getElementById('place-name').textContent = newData.name;
+        document.getElementById('recorder-name').textContent = newData.recorder;
+
         const currentCatData = SYSTEM_DATA.categories.find(c => c.id === currentCategory);
         renderSetMenu(currentCatData.sets);
 
@@ -496,40 +454,127 @@
         await preloadAllSamples();
 
         container.style.opacity = 1;
-        meta.style.opacity = 1;
     }
 
     // ==========================================
-    // 4. Sound Control (Phase 3.5: Still Basic)
+    // 4. Advanced Sound Control (Phase 3.6 Logic)
     // ==========================================
 
+    // HOLDモードの切り替え
+    function toggleHoldMode() {
+        isHoldMode = !isHoldMode;
+        const btn = document.getElementById('hold-btn');
+        
+        if (isHoldMode) {
+            btn.classList.add('active');
+        } else {
+            btn.classList.remove('active');
+            stopAllSounds(false); // HOLD解除時は全音リリース停止
+        }
+    }
+
+    // 音の再生（トリガー）
     function triggerSample(id) {
         if (!audioContext) initAudioContext();
-        if (audioContext && audioContext.state === 'suspended') {
-            audioContext.resume();
-        }
+        if (audioContext && audioContext.state === 'suspended') audioContext.resume();
 
-        if (playingNodes[id]) stopSample(id);
-
+        const sampleData = SYSTEM_DATA.sets[currentSetKey].samples[id];
         const buffer = audioBuffers[parseInt(id)];
         if (!buffer) return;
 
+        // ★ 再タップ時の挙動ロジック
+        // すでに再生中の場合
+        if (playingNodes[id]) {
+            // ループ再生中、またはHOLD中に再度叩かれた場合は「停止」とみなす
+            if (sampleData.loop || isHoldMode) {
+                stopSample(id, true); // true = 強制停止フラグ
+                return;
+            } else {
+                // 通常の連打（リトリガー）の場合は、古い音を消して新しい音を鳴らす
+                stopSample(id, true);
+            }
+        }
+
+        // オーディオグラフの構築: Source -> Gain -> Destination
         const source = audioContext.createBufferSource();
         source.buffer = buffer;
-        source.connect(audioContext.destination);
+        
+        // ループ設定
+        source.loop = sampleData.loop || false;
+
+        const gainNode = audioContext.createGain();
+        source.connect(gainNode);
+        gainNode.connect(audioContext.destination);
+
+        // アタック処理（プチッというノイズ防止）
+        gainNode.gain.setValueAtTime(0, audioContext.currentTime);
+        gainNode.gain.linearRampToValueAtTime(1, audioContext.currentTime + 0.01);
+
         source.start(0);
-        playingNodes[id] = source;
+
+        // 管理リストに登録
+        playingNodes[id] = { source: source, gain: gainNode };
+
+        // 視覚的な「演奏中」ステータス
+        document.getElementById(`pad-${id}`).classList.add('playing');
     }
 
-    function stopSample(id) {
-        if (playingNodes[id]) {
-            try { playingNodes[id].stop(0); } catch(e) {}
-            delete playingNodes[id];
+    // 音の停止（リリース）
+    function stopSample(id, forceStop = false) {
+        const node = playingNodes[id];
+        if (!node) return;
+
+        const sampleData = SYSTEM_DATA.sets[currentSetKey].samples[id];
+
+        // ★ HOLDロジック
+        // 強制停止(forceStop)でなく、かつHOLDモード中なら、停止命令を無視する
+        if (!forceStop && isHoldMode) {
+            return; 
         }
+
+        // ★ One-shotロジック
+        // 強制停止でなく、かつOne-shotモードなら、停止命令を無視する（最後まで鳴らす）
+        // ただしLoop設定がある場合はOne-shotでも止める必要があるため除外
+        if (!forceStop && sampleData.mode === 'oneshot' && !sampleData.loop) {
+            // 自然消滅を待つため、リストからは外すがstopは呼ばない
+            // 視覚的には消す
+            document.getElementById(`pad-${id}`).classList.remove('playing');
+            delete playingNodes[id];
+            return; 
+        }
+
+        // リリース処理（エンベロープ）
+        const now = audioContext.currentTime;
+        // 現在の音量から、0.5秒かけて0にする
+        node.gain.gain.cancelScheduledValues(now);
+        node.gain.gain.setValueAtTime(node.gain.gain.value, now);
+        node.gain.gain.linearRampToValueAtTime(0, now + DEFAULT_RELEASE_TIME);
+
+        // 完全に音が消えたらノードを停止・破棄
+        node.source.stop(now + DEFAULT_RELEASE_TIME);
+
+        // 管理リストから削除
+        delete playingNodes[id];
+        document.getElementById(`pad-${id}`).classList.remove('playing');
+    }
+
+    // 全音停止（セット切り替え時やHOLD解除時）
+    function stopAllSounds(immediate = false) {
+        Object.keys(playingNodes).forEach(id => {
+            if (immediate) {
+                // 即時停止
+                try { playingNodes[id].source.stop(0); } catch(e){}
+                delete playingNodes[id];
+                document.getElementById(`pad-${id}`).classList.remove('playing');
+            } else {
+                // フェードアウト停止
+                stopSample(id, true);
+            }
+        });
     }
 
     // ==========================================
-    // 5. Input & Init
+    // 5. Input
     // ==========================================
     window.addEventListener('keydown', (e) => {
         if (e.metaKey || e.ctrlKey) return;
