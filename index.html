@@ -364,26 +364,42 @@
         }
     }
 
-    function setupMasterFX() {
+function setupMasterFX() {
+        // 基本ノードの作成
         masterFilterNode = audioContext.createBiquadFilter();
         masterFilterNode.type = 'lowpass';
-        masterFilterNode.frequency.value = 20000; 
+        masterFilterNode.frequency.value = 20000;
         masterFilterNode.Q.value = 1;
 
         masterReverbNode = audioContext.createConvolver();
-        masterReverbNode.buffer = createReverbBuffer(2.0); 
-        
+        masterReverbNode.buffer = createReverbBuffer(2.0);
+
         masterDryGain = audioContext.createGain();
         masterDryGain.gain.value = 1.0;
-        
-        masterReverbGain = audioContext.createGain();
-        masterReverbGain.gain.value = 0.0; 
 
-        masterFilterNode.connect(masterDryGain); 
-        masterFilterNode.connect(masterReverbNode); 
+        masterReverbGain = audioContext.createGain();
+        masterReverbGain.gain.value = 0.0;
+
+        // ★追加：リミッター（コンプレッサー）の作成
+        const masterCompressor = audioContext.createDynamicsCompressor();
+        masterCompressor.threshold.value = -10; // -10dBを超えたら圧縮開始
+        masterCompressor.knee.value = 30;       // 滑らかに圧縮
+        masterCompressor.ratio.value = 12;      // 強めに抑える
+        masterCompressor.attack.value = 0.003;  // 素早く反応
+        masterCompressor.release.value = 0.25;  // 自然に戻す
+
+        // 接続ルーティング：
+        // Filter -> [Dry & Reverb] -> Compressor -> Destination
+        masterFilterNode.connect(masterDryGain);
+        masterFilterNode.connect(masterReverbNode);
         masterReverbNode.connect(masterReverbGain);
-        masterDryGain.connect(audioContext.destination);
-        masterReverbGain.connect(audioContext.destination);
+
+        // DryとReverbをコンプレッサーに集める
+        masterDryGain.connect(masterCompressor);
+        masterReverbGain.connect(masterCompressor);
+
+        // コンプレッサーを最終出力へ
+        masterCompressor.connect(audioContext.destination);
     }
 
     function createReverbBuffer(duration) {
