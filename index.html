@@ -101,32 +101,34 @@
             background-repeat: no-repeat;
             cursor: pointer;
             -webkit-tap-highlight-color: transparent;
+            /* 基本のトランジション */
+            transition: filter 0.1s ease-out, transform 0.1s; 
             filter: brightness(1.0) grayscale(0.2); 
-            transition: filter 0.05s ease-out, transform 0.1s;
         }
 
-        /* アクティブ（タップ直後） */
+        /* アクティブ（タップ直後・発光） */
         .pad.active {
-            filter: brightness(1.3) grayscale(0);
+            filter: brightness(1.4) grayscale(0); 
             z-index: 2;
         }
         
-        /* 再生中（通常） */
+        /* 再生中（指を離しても）の表示 */
         .pad.playing {
             filter: brightness(1.1) grayscale(0.1);
         }
 
-        /* ★浄化モード（長押し中）のアニメーション */
+        /* ★修正：浄化モード（HOLD中または長押し中） */
+        /* .active がなくても単独で機能するように変更 */
         .pad.purifying {
             animation: purify-pulse 4s infinite alternate;
             z-index: 3;
-            /* 枠線が滲むような表現 */
-            box-shadow: inset 0 0 20px rgba(0,0,0,0.8); 
+            box-shadow: inset 0 0 40px rgba(0,0,0,0.9); 
+            border: 1px solid rgba(255,255,255,0.1);
         }
 
         @keyframes purify-pulse {
-            0% { filter: brightness(1.1) grayscale(0.2) blur(0px); }
-            100% { filter: brightness(0.6) grayscale(0.8) blur(2px); }
+            0% { filter: brightness(1.0) grayscale(0.4) blur(0px); }
+            100% { filter: brightness(0.4) grayscale(0.9) blur(3px); }
         }
 
         .pad-label {
@@ -281,23 +283,18 @@
     let currentSetKey = null;
 
     // ==========================================
-    // 2. Audio Core (Phase 3.7: Purification Engine)
+    // 2. Audio Core (Phase 3.7 Revised)
     // ==========================================
     let audioContext;
     const audioBuffers = new Array(16);
-    
-    // 再生中ノード管理: { source, gain, startTime(押下時刻) }
     const playingNodes = {}; 
-
     let isHoldMode = false;
-    
     const pressedKeys = new Set();
     const keyMap = ['7','8','9','0', 'u','i','o','p', 'j','k','l',';', 'm',',','.','/'];
     
-    // --- パラメータ設定 ---
-    const DEFAULT_RELEASE = 0.5;   // 短く押した時のリリース(秒)
-    const LONG_PRESS_THRESHOLD = 0.4; // 長押しと判定する閾値(秒)
-    const DISSIPATE_DURATION = 30.0;  // 押し続けた時に音が消えるまでの時間(秒)
+    const DEFAULT_RELEASE = 0.5;   
+    const LONG_PRESS_THRESHOLD = 0.4; 
+    const DISSIPATE_DURATION = 30.0;  
 
     function initAudioContext() {
         if (audioContext) return;
@@ -317,7 +314,6 @@
             const response = await fetch(DATA_URL);
             if (!response.ok) throw new Error(`Data load failed: ${response.status}`);
             SYSTEM_DATA = await response.json();
-            
             if (SYSTEM_DATA.categories && SYSTEM_DATA.categories.length > 0) {
                 selectCategory(SYSTEM_DATA.categories[0].id);
             }
@@ -408,10 +404,10 @@
             pad.classList.add('active');
             triggerSample(pad.dataset.id);
             
-            // ★浄化演出タイマー: 長押し判定時間を過ぎたらクラス付与
+            // ★修正：浄化演出タイマー
             const purifyTimer = setTimeout(() => {
-                // まだ押されていれば浄化クラス追加
-                if (pad.classList.contains('active')) {
+                // 音が鳴っている状態(playing) または HOLD中 なら浄化開始
+                if (pad.classList.contains('active') || isHoldMode) {
                     pad.classList.add('purifying');
                 }
             }, LONG_PRESS_THRESHOLD * 1000);
@@ -420,10 +416,15 @@
         
         const release = (e) => {
             if(e.cancelable && e.type === 'touchend') e.preventDefault();
-            pad.classList.remove('active');
-            pad.classList.remove('purifying'); // 浄化演出終了
-            clearTimeout(pad.dataset.purifyTimer); // タイマー解除
+            pad.classList.remove('active'); // 物理的な指は離れたのでactiveは消す
             
+            // ★修正：HOLDモードの場合は、指を離しても浄化（暗さ）を維持する
+            if (!isHoldMode) {
+                pad.classList.remove('purifying'); 
+                clearTimeout(pad.dataset.purifyTimer); 
+            }
+            // HOLDモードONなら、purifyingクラスは残るし、タイマーもキャンセルしない（これから暗くなる場合のため）
+
             stopSample(pad.dataset.id);
         };
 
@@ -477,12 +478,12 @@
             btn.classList.add('active');
         } else {
             btn.classList.remove('active');
-            stopAllSounds(false);
+            stopAllSounds(false); // 全停止（ここでpurifyingも消える）
         }
     }
 
     // ==========================================
-    // 4. Advanced Sound Engine (Purification Logic)
+    // 4. Advanced Sound Engine
     // ==========================================
 
     function triggerSample(id) {
@@ -493,10 +494,9 @@
         const buffer = audioBuffers[parseInt(id)];
         if (!buffer) return;
 
-        // 再生中ノードの処理（リトリガー or 停止）
         if (playingNodes[id]) {
             if (sampleData.loop || isHoldMode) {
-                stopSample(id, true); 
+                stopSample(id, true); // 再タップで停止
                 return;
             } else {
                 stopSample(id, true);
@@ -512,20 +512,15 @@
         gainNode.connect(audioContext.destination);
 
         const now = audioContext.currentTime;
-
-        // アタック
         gainNode.gain.setValueAtTime(0, now);
         gainNode.gain.linearRampToValueAtTime(1, now + 0.05);
 
-        // ★浄化ロジック (Dissipate Schedule)
-        // 長押し（閾値を超えた後）から、30秒かけて音を0にするスケジュールをあらかじめ組む
-        // 0.05(Attack) + 0.4(Threshold) = 0.45秒後から減衰開始
+        // 浄化スケジュール（30秒かけて減衰）
         gainNode.gain.setValueAtTime(1, now + 0.45);
         gainNode.gain.linearRampToValueAtTime(0, now + 0.45 + DISSIPATE_DURATION);
 
         source.start(0);
 
-        // ノード管理（開始時間を記録）
         playingNodes[id] = { 
             source: source, 
             gain: gainNode,
@@ -538,56 +533,55 @@
     function stopSample(id, forceStop = false) {
         const node = playingNodes[id];
         if (!node) return;
+        const pad = document.getElementById(`pad-${id}`);
 
         const sampleData = SYSTEM_DATA.sets[currentSetKey].samples[id];
 
+        // HOLD中やOneShotの場合はここでリターンされる（音は止まらない）
         if (!forceStop && isHoldMode) return; 
         if (!forceStop && sampleData.mode === 'oneshot' && !sampleData.loop) {
-            document.getElementById(`pad-${id}`).classList.remove('playing');
+            // OneShotが自然終了する場合の見た目のリセット
+            pad.classList.remove('playing');
+            pad.classList.remove('purifying');
+            clearTimeout(pad.dataset.purifyTimer);
             delete playingNodes[id];
             return; 
         }
 
-        const now = audioContext.currentTime;
+        // ここに来るのは「本当に音を止める」時（リリース処理開始）
         
-        // ★動的リリース計算 (Energy Accumulation)
-        // 押していた時間を計算
+        // ★修正：音を止める＝浄化状態もリセット
+        pad.classList.remove('purifying');
+        clearTimeout(pad.dataset.purifyTimer);
+
+        const now = audioContext.currentTime;
         const pressDuration = now - node.startTime;
         let releaseTime = DEFAULT_RELEASE;
 
-        // 長押し（閾値超え）の場合、浄化計算を適用
         if (pressDuration > LONG_PRESS_THRESHOLD) {
-            // 計算式: 押下時間に応じて指数関数的にリリースを伸ばす
-            // 例: 2秒押下 -> (2 * 0.8)^1.2 + 0.5 ≈ 2.2秒リリース
             releaseTime = 0.5 + Math.pow(pressDuration * 0.8, 1.2);
-            
-            // 上限キャップ（任意だが30秒程度で頭打ちにする）
             if (releaseTime > 20) releaseTime = 20;
         }
 
-        // 既存のスケジュール（浄化フェードアウト）をキャンセルし、
-        // 「現在の音量」から「計算された時間」かけて消える新しいスケジュールで上書きする
         node.gain.gain.cancelScheduledValues(now);
-        
-        // cancelScheduledValuesだけでは値が飛ばされることがあるため、現在の値をセット
-        // ※正確な現在値取得は難しいが、聴感上違和感ないようホールドする
         node.gain.gain.setValueAtTime(node.gain.gain.value, now);
-        
-        // 新しいリリース時間でフェードアウト
         node.gain.gain.exponentialRampToValueAtTime(0.001, now + releaseTime);
 
         node.source.stop(now + releaseTime);
 
         delete playingNodes[id];
-        document.getElementById(`pad-${id}`).classList.remove('playing');
+        pad.classList.remove('playing');
     }
 
     function stopAllSounds(immediate = false) {
         Object.keys(playingNodes).forEach(id => {
+            const pad = document.getElementById(`pad-${id}`);
             if (immediate) {
                 try { playingNodes[id].source.stop(0); } catch(e){}
                 delete playingNodes[id];
-                document.getElementById(`pad-${id}`).classList.remove('playing');
+                pad.classList.remove('playing');
+                pad.classList.remove('purifying'); // 即時停止時も消す
+                clearTimeout(pad.dataset.purifyTimer);
             } else {
                 stopSample(id, true);
             }
@@ -604,9 +598,8 @@
             pad.classList.add('active');
             triggerSample(pad.dataset.id);
             
-            // キーボード操作でも浄化演出
             const purifyTimer = setTimeout(() => {
-                if (pressedKeys.has(key)) pad.classList.add('purifying');
+                if (pressedKeys.has(key) || isHoldMode) pad.classList.add('purifying');
             }, LONG_PRESS_THRESHOLD * 1000);
             pad.dataset.purifyTimer = purifyTimer;
         }
@@ -618,8 +611,11 @@
         if (pad) {
             pressedKeys.delete(key);
             pad.classList.remove('active');
-            pad.classList.remove('purifying');
-            clearTimeout(pad.dataset.purifyTimer);
+            
+            if (!isHoldMode) {
+                pad.classList.remove('purifying');
+                clearTimeout(pad.dataset.purifyTimer);
+            }
             stopSample(pad.dataset.id);
         }
     });
