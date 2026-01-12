@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Solosola Data Editor V3.0</title>
+    <title>Solosola Data Editor V3.1</title>
     <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@100;300;400&display=swap" rel="stylesheet">
     <style>
         :root { --bg-color: #1a1a1a; --panel-color: #2a2a2a; --text-color: #e0e0e0; --accent-color: #00ccff; --warn-color: #ff4444; }
@@ -20,7 +20,6 @@
         
         #sample-list { display: grid; grid-template-columns: 1fr; gap: 8px; }
         
-        /* Grid Layout for Sample Row: Improved for more controls */
         .sample-row { 
             background: #222; padding: 10px; border-radius: 4px; 
             display: grid; 
@@ -33,7 +32,6 @@
         .filename-cell { font-size: 0.7rem; color: #666; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
         select, .file-input-btn { background: #111; color: #fff; border: 1px solid #444; padding: 5px; font-size: 0.8rem; }
         
-        /* Checkbox styling */
         .chk-label { font-size: 0.7rem; cursor: pointer; display: flex; align-items: center; gap: 4px; }
         
         textarea { width: 100%; height: 150px; background: #111; color: #0f0; font-family: monospace; border: 1px solid #444; padding: 15px; box-sizing: border-box; border-radius: 8px; margin-top: 10px; white-space: pre; overflow-x: auto; }
@@ -45,14 +43,12 @@
         button.load { background-color: #e0e0e0; color: #000; width: 100%; margin-top: 10px; }
         
         .clear-btn { color: var(--warn-color); cursor: pointer; font-size: 1.2rem; line-height: 1; text-align: center; }
-        .note { font-size: 0.7rem; color: #666; margin-top: 5px; }
-        
         h2 { font-size: 1rem; color: #888; margin-top: 30px; border-bottom: 1px solid #444; padding-bottom: 5px; }
     </style>
 </head>
 <body>
 
-    <h1>SOLOSOLA DATA EDITOR <span style="font-size:0.5em; opacity:0.5;">v3.0</span></h1>
+    <h1>SOLOSOLA DATA EDITOR <span style="font-size:0.5em; opacity:0.5;">v3.1</span></h1>
 
     <div class="container">
         <div class="section">
@@ -70,9 +66,7 @@
             </div>
         </div>
 
-        <div id="drop-zone">
-            音声ファイルをドロップ (自動割り当て)
-        </div>
+        <div id="drop-zone">音声ファイルをドロップ (自動割り当て)</div>
 
         <div id="sample-list"></div>
 
@@ -84,14 +78,13 @@
 
         <h2>EXISTING DATA IMPORT</h2>
         <div class="section">
-            <label>編集したいJSONデータ（1セット分、またはSet部分のみ）をここに貼り付けてください</label>
+            <label>編集したいJSONデータ（1セット分）を貼り付けてください</label>
             <textarea id="import-area" style="color: #ccc; height: 100px;" placeholder='例: "shibuya": { "name": "...", "samples": [...] },'></textarea>
             <button class="load" onclick="importJson()">LOAD JSON</button>
         </div>
     </div>
 
     <script>
-        // データ構造の初期化（V3仕様：randomStart, fadeInを追加）
         let samplesData = Array(16).fill(null).map((_, i) => ({
             id: i, filename: '', label: '', mode: 'gate', loop: false, 
             randomStart: false, fadeIn: false
@@ -115,11 +108,9 @@
                         <option value="gate" ${s.mode === 'gate' ? 'selected' : ''}>Gate</option>
                         <option value="oneshot" ${s.mode === 'oneshot' ? 'selected' : ''}>OneShot</option>
                     </select>
-                    
                     <label class="chk-label"><input type="checkbox" ${s.loop ? 'checked' : ''} onchange="updateData(${i}, 'loop', this.checked)"> Loop</label>
                     <label class="chk-label" title="開始位置をランダムにずらす"><input type="checkbox" ${s.randomStart ? 'checked' : ''} onchange="updateData(${i}, 'randomStart', this.checked)"> Rnd</label>
                     <label class="chk-label" title="冒頭のプチノイズ防止"><input type="checkbox" ${s.fadeIn ? 'checked' : ''} onchange="updateData(${i}, 'fadeIn', this.checked)"> Fade</label>
-                    
                     <div class="clear-btn" onclick="clearSlot(${i})">×</div>
                 `;
                 listEl.appendChild(row);
@@ -155,30 +146,43 @@
             }
         });
 
+        // 修正箇所：手動で文字列を構築して、配列部分は1行にする
         function generateJson() {
             const setId = document.getElementById('set-id').value || 'new-set';
             let basePath = document.getElementById('base-path').value || 'assets/audio/';
             if (!basePath.endsWith('/')) basePath += '/';
 
-            const setObj = {
-                name: document.getElementById('set-name').value || 'New Set',
-                recorder: document.getElementById('recorder').value || 'Unknown',
-                image: document.getElementById('image-url').value || '',
-                samples: samplesData.map(s => ({
+            const name = document.getElementById('set-name').value || 'New Set';
+            const recorder = document.getElementById('recorder').value || 'Unknown';
+            const image = document.getElementById('image-url').value || '';
+
+            // ヘッダー部分
+            let output = `"${setId}": {\n`;
+            output += `    "name": ${JSON.stringify(name)},\n`;
+            output += `    "recorder": ${JSON.stringify(recorder)},\n`;
+            output += `    "image": ${JSON.stringify(image)},\n`;
+            output += `    "samples": [\n`;
+
+            // サンプル部分（1行ずつ生成）
+            const sampleLines = samplesData.map(s => {
+                const sObj = {
                     id: s.id,
                     url: s.filename ? (basePath + s.filename) : "",
                     label: s.label || `Sound ${s.id + 1}`,
                     mode: s.mode,
-                    loop: s.loop,
-                    // V3 追加プロパティ（trueの時だけ書き出すことでJSONを軽くする）
-                    ...(s.randomStart && { randomStart: true }),
-                    ...(s.fadeIn && { fadeIn: true })
-                }))
-            };
+                    loop: s.loop
+                };
+                if (s.randomStart) sObj.randomStart = true;
+                if (s.fadeIn) sObj.fadeIn = true;
 
-            const jsonBody = JSON.stringify(setObj, null, 4);
-            // キー部分も含めて出力
-            document.getElementById('output-area').value = `"${setId}": ${jsonBody},`;
+                // 個別のオブジェクトだけ1行化する
+                return `        ${JSON.stringify(sObj)}`;
+            });
+
+            output += sampleLines.join(',\n');
+            output += `\n    ]\n},`;
+
+            document.getElementById('output-area').value = output;
         }
 
         function importJson() {
@@ -186,50 +190,38 @@
             if (!rawInput) return alert("JSONデータを貼り付けてください");
 
             try {
-                // キー（"shibuya":）が含まれている場合に対応するため、全体を{}で囲んでパースを試みる
                 let jsonStr = rawInput;
-                // 末尾のカンマを除去
                 if (jsonStr.endsWith(',')) jsonStr = jsonStr.slice(0, -1);
                 
                 let parsed;
-                // 形式が "key": { ... } か { ... } かを判定
                 if (jsonStr.startsWith('"') || jsonStr.trim().startsWith("'")) {
                     parsed = JSON.parse(`{${jsonStr}}`);
                     const keys = Object.keys(parsed);
                     if (keys.length > 0) {
-                        document.getElementById('set-id').value = keys[0]; // キーをID入力欄へ
-                        parsed = parsed[keys[0]]; // 中身を取り出す
+                        document.getElementById('set-id').value = keys[0];
+                        parsed = parsed[keys[0]];
                     }
                 } else {
                     parsed = JSON.parse(jsonStr);
                 }
 
-                // 各フィールドへの反映
                 if(parsed.name) document.getElementById('set-name').value = parsed.name;
                 if(parsed.recorder) document.getElementById('recorder').value = parsed.recorder;
                 if(parsed.image) document.getElementById('image-url').value = parsed.image;
 
-                // サンプルデータの復元
                 if (parsed.samples && Array.isArray(parsed.samples)) {
-                    // パス設定の推定（最初のファイルのパスからディレクトリを抽出）
                     const firstSample = parsed.samples.find(s => s.url);
                     if (firstSample) {
                         const pathMatch = firstSample.url.match(/^(.*\/)/);
                         if (pathMatch) document.getElementById('base-path').value = pathMatch[1];
                     }
-
-                    // データの流し込み
                     samplesData.forEach(d => {
-                        // 初期化
                         d.filename = ''; d.label = ''; d.mode = 'gate'; d.loop = false; d.randomStart = false; d.fadeIn = false;
                     });
-
                     parsed.samples.forEach(s => {
                         const idx = s.id;
                         if (idx >= 0 && idx < 16) {
-                            // URLからファイル名だけ抽出
                             const fileName = s.url ? s.url.split('/').pop() : '';
-                            
                             samplesData[idx] = {
                                 id: idx,
                                 filename: fileName,
@@ -246,7 +238,7 @@
                 alert("データを読み込みました！");
             } catch (e) {
                 console.error(e);
-                alert("JSONの読み込みに失敗しました。\n形式を確認してください。\n例: \"key\": { ... } または { ... }");
+                alert("JSONの読み込みに失敗しました。");
             }
         }
 
