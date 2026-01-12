@@ -24,7 +24,13 @@
         }
 
         /* --- LAYOUT STRUCTURE --- */
-        #mobile-header { display: flex; flex-direction: column; align-items: center; justify-content: center; height: 15vh; width: 100%; z-index: 50; position: relative; }
+        /* Mobile Header with Safe Area */
+        #mobile-header { 
+            display: flex; flex-direction: column; align-items: center; justify-content: center; 
+            height: 18vh; width: 100%; z-index: 50; position: relative;
+            padding-top: env(safe-area-inset-top); /* iPhone Safe Area */
+            box-sizing: border-box;
+        }
         
         /* PC Layout: 3 Columns */
         @media (min-width: 800px) {
@@ -32,16 +38,21 @@
             #mobile-header { display: none; }
             
             #left-col { width: 250px; display: flex; flex-direction: column; justify-content: center; align-items: flex-start; gap: 20px; height: 100%; z-index: 10; }
-            #center-col { flex: 1; display: flex; align-items: center; justify-content: center; height: 100%; }
-            #right-col { width: 300px; display: flex; align-items: center; justify-content: center; height: 100%; z-index: 10; } /* 幅を広げた */
+            #center-col { flex: 1; display: flex; align-items: center; justify-content: center; height: 100%; position: relative; }
+            /* Right Col: Chaos Pad + Buttons */
+            #right-col { width: 300px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 20px; height: 100%; z-index: 10; }
             
             #pc-info-area { margin-bottom: 20px; }
             #place-name-pc { font-size: 2rem; letter-spacing: 0.2em; font-weight: 100; margin: 0; text-transform: uppercase; }
             #recorder-name-pc { font-size: 0.8rem; opacity: 0.6; letter-spacing: 0.1em; }
+            
+            /* Hide mobile controls in PC */
+            #pc-controls-container { display: flex; gap: 15px; margin-top: 10px; width: 240px; justify-content: space-between; }
         }
         
         @media (max-width: 799px) {
             #left-col, #right-col { display: none; }
+            #center-col { flex: 1; width: 100%; display: flex; align-items: center; justify-content: center; }
             #mobile-header { border-bottom: 1px solid rgba(255,255,255,0.1); transition: border-color 0.3s; }
         }
 
@@ -58,9 +69,9 @@
             background: 
                 linear-gradient(rgba(255,255,255,0.05) 1px, transparent 1px),
                 linear-gradient(90deg, rgba(255,255,255,0.05) 1px, transparent 1px);
-            background-size: 24px 24px; /* Grid Lines */
+            background-size: 24px 24px;
         }
-        #fx-pad-pc::before { content: "Y: FILTER (LFO)"; position: absolute; top: 10px; left: 10px; font-size: 0.6rem; opacity: 0.3; pointer-events: none; letter-spacing: 0.1em; writing-mode: vertical-rl; }
+        #fx-pad-pc::before { content: "Y: FILTER"; position: absolute; top: 10px; left: 10px; font-size: 0.6rem; opacity: 0.3; pointer-events: none; letter-spacing: 0.1em; writing-mode: vertical-rl; }
         #fx-pad-pc::after { content: "X: REVERB"; position: absolute; bottom: 10px; right: 10px; font-size: 0.6rem; opacity: 0.3; pointer-events: none; letter-spacing: 0.1em; }
         #fx-pad-pc.active { box-shadow: 0 0 20px var(--fx-active-color); border-color: var(--fx-active-color); }
         
@@ -72,7 +83,8 @@
         }
         .fx-cursor.active { transform: translate(-50%, -50%) scale(1); opacity: 1; }
 
-        #sampler-wrapper { width: 85vmin; height: 85vmin; max-width: 500px; max-height: 500px; position: relative; opacity: 0; transition: opacity 1s; }
+        /* Sampler Pads */
+        #sampler-wrapper { width: 85vmin; height: 85vmin; max-width: 500px; max-height: 500px; position: relative; opacity: 0; transition: opacity 1s; margin: auto; }
         #sampler-container { display: grid; grid-template-columns: repeat(4, 1fr); grid-template-rows: repeat(4, 1fr); gap: 1px; width: 100%; height: 100%; }
 
         /* PAD VISUAL LOGIC */
@@ -80,6 +92,7 @@
             position: relative; background-color: #222; background-size: 400% 400%; background-repeat: no-repeat; cursor: pointer; 
             -webkit-tap-highlight-color: transparent; 
             filter: var(--pad-base);
+            /* 通常に戻る時、および浄化からの復帰はJSで制御するが、基本設定として */
             transition: filter 0.5s ease-out, box-shadow 0.5s ease-out; 
             box-shadow: inset 0 0 0 rgba(0,0,0,0); 
         }
@@ -90,23 +103,22 @@
             z-index: 2; 
         }
         
-        /* 浄化: Loop長押し時の深い沈殿 */
+        /* 浄化: Gate長押し時の深い沈殿 */
         .pad.purifying { 
             filter: var(--pad-dark); 
             z-index: 3; 
-            /* 影も含めて10秒かけて変化 */
+            /* 10秒かけて闇へ */
             transition: filter 10s ease-in-out, box-shadow 10s ease-in-out; 
+            /* 輪郭線(border)は削除、box-shadowで滲ませる */
             box-shadow: inset 0 0 80px rgba(0,0,0,1); 
-            border: 1px solid rgba(255,255,255,0.02);
         }
 
         .pad-label { position: absolute; bottom: 5px; right: 5px; font-size: 0.6rem; opacity: 0.5; font-weight: 100; pointer-events: none; text-shadow: 0 0 2px black; }
 
-        .control-group { display: flex; gap: 15px; margin-top: 20px; }
         .control-btn { 
             border: 1px solid var(--text-color); padding: 8px 20px; font-size: 0.8rem; letter-spacing: 0.1em; 
             color: var(--text-color); background: transparent; cursor: pointer; transition: all 0.2s; opacity: 0.6; 
-            border-radius: 20px; text-align: center; 
+            border-radius: 20px; text-align: center; min-width: 60px;
         }
         .control-btn.active { background: var(--text-color); color: var(--bg-color); opacity: 1; box-shadow: 0 0 10px rgba(255,255,255,0.3); }
         #fx-btn-pc.active, #fx-btn-mobile.active { background: var(--fx-active-color); border-color: var(--fx-active-color); color: #000; box-shadow: 0 0 15px var(--fx-active-color); }
@@ -139,10 +151,6 @@
             <h1 id="place-name-pc">SOLOSOLA</h1>
             <p id="recorder-name-pc">Soundscape Media</p>
         </div>
-        <div class="control-group">
-            <div id="hold-btn-pc" class="control-btn" onclick="toggleHoldMode()">HOLD</div>
-            <div id="fx-btn-pc" class="control-btn" onclick="toggleFxMode()">FX</div>
-        </div>
         <div class="menu-area">
             <div id="category-menu"></div>
             <div id="set-menu"></div>
@@ -159,6 +167,10 @@
         <div id="fx-pad-pc">
             <div id="pc-fx-cursor" class="fx-cursor"></div>
         </div>
+        <div id="pc-controls-container">
+            <div id="hold-btn-pc" class="control-btn" onclick="toggleHoldMode()">HOLD (H)</div>
+            <div id="fx-btn-pc" class="control-btn" onclick="toggleFxMode()">FX (Enter)</div>
+        </div>
     </div>
 
     <div id="menu-container-mobile" style="display:none;"></div>
@@ -171,6 +183,7 @@
     let isHoldMode = false, isFxMode = false;
     let masterFilterNode, masterReverbNode, masterReverbGain, masterDryGain, masterCompressor;
     
+    // KeyMap: 1234 qwer asdf zxcv
     const keyMap = ['1','2','3','4', 'q','w','e','r', 'a','s','d','f', 'z','x','c','v'];
     const mobileMenu = document.getElementById('menu-container-mobile');
 
@@ -257,7 +270,15 @@
         const buffer = audioBuffers[parseInt(id)]; 
         if (!buffer) return false; 
 
-        if (playingNodes[id]) stopSample(id, true); 
+        // HOLD MODEでの挙動: 既に鳴っているパッドを押した場合は「停止」させる
+        if (playingNodes[id]) {
+            if (isHoldMode) {
+                stopSample(id, true); // Force Stop (Hold Release)
+                return false;
+            } else {
+                stopSample(id, true); // 連打のためのリセット
+            }
+        }
 
         const source = audioContext.createBufferSource(); 
         source.buffer = buffer; 
@@ -304,9 +325,11 @@
         const sampleData = SYSTEM_DATA.sets[currentSetKey].samples[id];
         const now = audioContext.currentTime;
 
-        if (!forceStop && isHoldMode && sampleData.loop) { return; } 
+        // HOLD MODE (Loop/Gate問わず、Hold中は離しても止まらない)
+        if (!forceStop && isHoldMode) { return; } 
 
-        if (!forceStop && !sampleData.loop && sampleData.mode === 'gate') {
+        // Gate Mode: 指を離したら止める (リリースは短め)
+        if (!forceStop && sampleData.mode === 'gate') {
             pad.classList.remove('active');
             node.gain.gain.cancelScheduledValues(now);
             node.gain.gain.setValueAtTime(node.gain.gain.value, now);
@@ -316,7 +339,8 @@
             return;
         }
         
-        if (!forceStop && !sampleData.loop && sampleData.mode !== 'gate') {
+        // OneShot (Non-Gate): 止めない、見た目だけフェード
+        if (!forceStop && sampleData.mode !== 'gate') {
             pad.classList.remove('active');
             const played = now - node.startTime;
             const remaining = Math.max(0, node.bufferDuration - played);
@@ -324,11 +348,15 @@
             return; 
         }
 
+        // ここに来るのはForceStop時など
         pad.classList.remove('active');
         pad.style.transition = ""; 
 
+        // 浄化判定
         let releaseTime = 0.5; 
         const pressDuration = now - node.startTime;
+        
+        // 浄化中、または長押しされていた場合
         if (pad.classList.contains('purifying') || pressDuration > 0.4) {
             releaseTime = 0.5 + Math.pow(pressDuration * 0.8, 1.2); 
             if (releaseTime > 20) releaseTime = 20; 
@@ -341,6 +369,11 @@
             node.source.stop(now + releaseTime); 
         } catch(e) {}
         
+        // ★ Visual Sync: 音が消える時間と見た目が戻る時間を同期
+        if (pad.classList.contains('purifying')) {
+             pad.style.transition = `filter ${releaseTime}s ease-out, box-shadow ${releaseTime}s ease-out`;
+        }
+
         pad.classList.remove('purifying'); 
         clearTimeout(pad.dataset.purifyTimer); 
         delete playingNodes[id]; 
@@ -367,8 +400,10 @@
             if (e.type === 'touchstart') isTouch = true;
             if (e.type === 'mousedown' && isTouch) return;
             triggerSample(id); 
+            
             const sampleData = SYSTEM_DATA.sets[currentSetKey].samples[id];
-            if (sampleData.loop) {
+            // 浄化トリガー: Gate Mode かつ長押し (Loop条件は撤廃)
+            if (sampleData.mode === 'gate') {
                 const timer = setTimeout(() => {
                     if (pad.classList.contains('active') || isHoldMode) {
                         pad.classList.add('purifying');
@@ -465,6 +500,13 @@
         isHoldMode = !isHoldMode; 
         const updateBtn = (id) => { const b = document.getElementById(id); if(b) isHoldMode ? b.classList.add('active') : b.classList.remove('active'); };
         updateBtn('hold-btn-pc'); updateBtn('hold-btn-mobile');
+        
+        // 404 Style Hold Logic: 
+        // HOLD ONになった瞬間、現在押されているキーやパッドがあれば、それらは音を止めないようにする。
+        // これは stopSample 内で !forceStop && isHoldMode のチェックがあるため、
+        // ユーザーがHOLDボタンを押した瞬間に isHoldMode=true になり、
+        // その後指を離しても stopSample がキャンセルされるので、自動的に実現される。
+        
         if (!isHoldMode) stopAllSounds(false); 
     }
 
@@ -500,13 +542,30 @@
             
             cursor.style.left = x*100 + '%'; cursor.style.top = y*100 + '%';
             cursor.classList.add('active');
-            
-            // X=Reverb, Y=Filter
             updateFxParams(x, y); 
         };
         
         zone.addEventListener('mousemove', e => { if(e.buttons>0) move(e.clientX, e.clientY); });
-        zone.addEventListener('touchmove', e => { e.preventDefault(); if(e.touches.length>0) move(e.touches[0].clientX, e.touches[0].clientY); }, {passive:false});
+        
+        // Multi-touch Fix: Only track touches that started on/are inside the FX zone
+        zone.addEventListener('touchmove', e => { 
+            e.preventDefault(); 
+            // 全タッチの中から、このゾーン内のものを探す、あるいは1本目を追跡
+            // シンプルに「e.touches」をループして、ターゲットが自分(zone)または子要素であるものを探すのが正確だが、
+            // Mobile Header等は大きいので、clientX/Y判定の方が確実。
+            // ここでは簡易的に 0番目 を使うが、パッド操作中(Padが0番目)だとバグる。
+            // 修正: touchesリストを回して、このエレメント上にあるタッチを採用する。
+            for (let i=0; i < e.touches.length; i++) {
+                const t = e.touches[i];
+                // タッチ位置がゾーン矩形内かチェック
+                const rect = zone.getBoundingClientRect();
+                if (t.clientX >= rect.left && t.clientX <= rect.right && 
+                    t.clientY >= rect.top && t.clientY <= rect.bottom) {
+                    move(t.clientX, t.clientY);
+                    break; // 1つ見つかればOK
+                }
+            }
+        }, {passive:false});
     }
     
     setupFx('mobile-header', 'mobile-fx-cursor');
@@ -525,9 +584,22 @@
         masterDryGain.gain.setTargetAtTime(1.0 - (wet * 0.4), now, 0.1);
     }
 
+    // Keyboard Input
     window.addEventListener('keydown', e => {
         if (e.metaKey||e.ctrlKey) return;
         const k = e.key.toLowerCase();
+        
+        // HOLD SHORTCUT (H)
+        if (k === 'h') {
+            toggleHoldMode();
+            return;
+        }
+        // FX SHORTCUT (Enter)
+        if (k === 'enter') {
+            toggleFxMode();
+            return;
+        }
+
         const pad = document.querySelector(`.pad[data-key="${k}"]`);
         if (pad && !pressedKeys.has(k)) {
             pressedKeys.add(k);
