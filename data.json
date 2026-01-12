@@ -92,91 +92,91 @@
         {
             "id": 3,
             "url": "assets/audio/test1/Proj1_1-09 Looper Sample.mp3",
-            "label": "Proj1_1-09 Looper Sample",
+            "label": "Loop A",
             "mode": "gate",
             "loop": true
         },
         {
             "id": 4,
             "url": "assets/audio/test1/Proj1_1-11 Looper Sample.mp3",
-            "label": "Proj1_1-11 Looper Sample",
+            "label": "Loop B",
             "mode": "gate",
             "loop": true
         },
         {
             "id": 5,
             "url": "assets/audio/test1/Proj1_1-12 New Sample.mp3",
-            "label": "Proj1_1-12 New Sample",
+            "label": "Nanami and Yo",
             "mode": "gate",
             "loop": false
         },
         {
             "id": 6,
             "url": "assets/audio/test1/Proj1_2-05              407.mp3",
-            "label": "Proj1_2-05              407",
+            "label": "Kunio and Yo",
             "mode": "gate",
             "loop": false
         },
         {
             "id": 7,
             "url": "assets/audio/test1/Proj1_2-16 New Sample.mp3",
-            "label": "Proj1_2-16 New Sample",
+            "label": "Echo",
             "mode": "gate",
             "loop": false
         },
         {
             "id": 8,
             "url": "assets/audio/test1/Proj1_9-13 I-13.mp3",
-            "label": "Proj1_9-13 I-13",
+            "label": "Bass Drum",
             "mode": "oneshot",
             "loop": false
         },
         {
             "id": 9,
             "url": "assets/audio/test1/Proj5_1-02 New Sample.mp3",
-            "label": "Proj5_1-02 New Sample",
+            "label": "Inflection01",
             "mode": "oneshot",
             "loop": false
         },
         {
             "id": 10,
             "url": "assets/audio/test1/Proj5_1-03 New Sample.mp3",
-            "label": "Proj5_1-03 New Sample",
+            "label": "Inflection02",
             "mode": "oneshot",
             "loop": false
         },
         {
             "id": 11,
             "url": "assets/audio/test1/Proj5_1-04 New Sample.mp3",
-            "label": "Proj5_1-04 New Sample",
+            "label": "Inflection03",
             "mode": "oneshot",
             "loop": false
         },
         {
             "id": 12,
             "url": "assets/audio/test1/Proj5_1-05 New Sample.mp3",
-            "label": "Proj5_1-05 New Sample",
+            "label": "Inflection04",
             "mode": "oneshot",
             "loop": false
         },
         {
             "id": 13,
             "url": "assets/audio/test1/Proj5_1-06 New Sample.mp3",
-            "label": "Proj5_1-06 New Sample",
+            "label": "Inflection05",
             "mode": "oneshot",
             "loop": false
         },
         {
             "id": 14,
             "url": "assets/audio/test1/Proj5_1-07 New Sample.mp3",
-            "label": "Proj5_1-07 New Sample",
+            "label": "Inflection06",
             "mode": "oneshot",
             "loop": false
         },
         {
             "id": 15,
             "url": "assets/audio/test1/Proj5_1-11 Looper Sample.mp3",
-            "label": "Proj5_1-11 Looper Sample",
+            "label": "Inflection Loop",
             "mode": "gate",
             "loop": true
         }
