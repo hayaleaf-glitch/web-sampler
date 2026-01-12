@@ -1,0 +1,337 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Solosola Studio | Data Editor</title>
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@100;300;400;700&display=swap" rel="stylesheet">
+    <style>
+        :root { --bg-color: #1a1a1a; --panel-color: #252525; --text-color: #e0e0e0; --accent-color: #00ccff; --border-color: #444; }
+        body { background-color: var(--bg-color); color: var(--text-color); font-family: 'Helvetica Neue', 'Noto Sans JP', sans-serif; margin: 0; display: flex; height: 100vh; overflow: hidden; }
+        
+        /* --- LAYOUT --- */
+        #sidebar { width: 300px; background: #111; border-right: 1px solid var(--border-color); display: flex; flex-direction: column; padding: 20px; box-sizing: border-box; }
+        #main-area { flex: 1; display: flex; flex-direction: column; padding: 30px; overflow-y: auto; align-items: center; }
+        #inspector { width: 320px; background: var(--panel-color); border-left: 1px solid var(--border-color); padding: 20px; box-sizing: border-box; overflow-y: auto; display: none; }
+        #inspector.active { display: block; }
+
+        /* --- SIDEBAR --- */
+        h1 { font-weight: 100; letter-spacing: 0.1em; margin: 0 0 20px 0; font-size: 1.2rem; }
+        .btn { width: 100%; padding: 10px; margin-bottom: 10px; border: none; border-radius: 4px; cursor: pointer; font-weight: bold; transition: opacity 0.2s; }
+        .btn:hover { opacity: 0.8; }
+        .btn-primary { background: var(--accent-color); color: #000; }
+        .btn-secondary { background: #444; color: #fff; }
+        .file-input-wrapper { margin-bottom: 20px; border-bottom: 1px solid var(--border-color); padding-bottom: 20px; }
+        
+        #set-list { flex: 1; overflow-y: auto; margin-top: 10px; }
+        .set-item { padding: 10px; border-bottom: 1px solid #333; cursor: pointer; opacity: 0.6; }
+        .set-item:hover { opacity: 1; background: #222; }
+        .set-item.active { opacity: 1; color: var(--accent-color); border-left: 3px solid var(--accent-color); background: #222; }
+
+        /* --- MAIN GRID --- */
+        #grid-container { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; width: 500px; height: 500px; margin-bottom: 20px; }
+        .pad-cell { 
+            background: #333; border-radius: 4px; border: 1px solid #555; 
+            display: flex; flex-direction: column; justify-content: center; align-items: center; 
+            cursor: pointer; position: relative; transition: all 0.2s;
+        }
+        .pad-cell:hover { border-color: var(--accent-color); }
+        .pad-cell.selected { border-color: var(--accent-color); box-shadow: 0 0 15px rgba(0, 204, 255, 0.3); background: #3a3a3a; }
+        .pad-cell.has-file { background: #2a3a40; }
+        
+        .pad-num { position: absolute; top: 5px; left: 8px; font-size: 0.7rem; opacity: 0.5; }
+        .pad-label { font-size: 0.8rem; text-align: center; pointer-events: none; padding: 0 5px; }
+        .pad-mode { position: absolute; bottom: 5px; right: 5px; font-size: 0.6rem; color: var(--accent-color); opacity: 0.8; }
+
+        /* --- INSPECTOR --- */
+        h2 { font-size: 1rem; margin-top: 0; border-bottom: 1px solid var(--border-color); padding-bottom: 10px; margin-bottom: 20px; }
+        .form-group { margin-bottom: 15px; }
+        label { display: block; font-size: 0.75rem; color: #888; margin-bottom: 5px; }
+        input[type="text"], select { width: 100%; padding: 8px; background: #111; border: 1px solid #555; color: #fff; border-radius: 4px; box-sizing: border-box; }
+        .checkbox-group { display: flex; align-items: center; gap: 10px; margin-top: 5px; }
+        .info-text { font-size: 0.7rem; color: #666; margin-top: 5px; }
+
+        #drop-zone-pad {
+            border: 2px dashed #555; padding: 20px; text-align: center; margin-bottom: 10px; border-radius: 4px; cursor: pointer; font-size: 0.8rem; color: #888;
+        }
+        #drop-zone-pad:hover { border-color: var(--accent-color); color: var(--accent-color); background: rgba(0,204,255,0.05); }
+
+    </style>
+</head>
+<body>
+
+    <div id="sidebar">
+        <h1>SOLOSOLA STUDIO</h1>
+        
+        <div class="file-input-wrapper">
+            <label>1. Load data.json</label>
+            <input type="file" id="json-loader" accept=".json" style="margin-top:5px; width:100%;">
+        </div>
+
+        <label>2. Select Set</label>
+        <div id="set-list">
+            <div style="padding:10px; font-size:0.8rem; color:#666;">JSONファイルを読み込むとここにセット一覧が表示されます</div>
+        </div>
+
+        <div style="margin-top:auto;">
+            <button class="btn btn-primary" onclick="exportJson()">3. Download JSON</button>
+        </div>
+    </div>
+
+    <div id="main-area">
+        <h2 id="current-set-title" style="border:none; margin-bottom:20px;">No Set Selected</h2>
+        <div id="grid-container">
+            </div>
+        <div style="font-size:0.8rem; color:#666;">パッドをクリックして詳細を編集</div>
+    </div>
+
+    <div id="inspector">
+        <h2>PAD EDITOR</h2>
+        <div id="pad-editor-content">
+            <div class="form-group">
+                <label>PAD ID</label>
+                <input type="text" id="edit-id" readonly style="opacity:0.5;">
+            </div>
+
+            <div class="form-group">
+                <label>Audio File (Drag & Drop here)</label>
+                <div id="drop-zone-pad">ファイルをドロップ<br>またはクリックして選択</div>
+                <input type="file" id="pad-file-input" accept="audio/*" style="display:none;">
+                <input type="text" id="edit-url" placeholder="assets/audio/..." oninput="updateCurrentPad('url', this.value)">
+                <div class="info-text">※パスは自動入力されます</div>
+            </div>
+
+            <div class="form-group">
+                <label>Label (表示名)</label>
+                <input type="text" id="edit-label" oninput="updateCurrentPad('label', this.value)">
+            </div>
+
+            <div class="form-group">
+                <label>Mode</label>
+                <select id="edit-mode" onchange="updateCurrentPad('mode', this.value)">
+                    <option value="gate">Gate (長押し)</option>
+                    <option value="oneshot">OneShot (1回再生)</option>
+                </select>
+            </div>
+
+            <div class="form-group">
+                <label>Options</label>
+                <div class="checkbox-group">
+                    <input type="checkbox" id="edit-loop" onchange="updateCurrentPad('loop', this.checked)">
+                    <label for="edit-loop" style="margin:0; cursor:pointer;">Loop Playback</label>
+                </div>
+                <div class="checkbox-group">
+                    <input type="checkbox" id="edit-fadeIn" onchange="updateCurrentPad('fadeIn', this.checked)">
+                    <label for="edit-fadeIn" style="margin:0; cursor:pointer;">Fade In</label>
+                </div>
+                <div class="checkbox-group">
+                    <input type="checkbox" id="edit-random" onchange="updateCurrentPad('randomStart', this.checked)">
+                    <label for="edit-random" style="margin:0; cursor:pointer;">Random Start</label>
+                </div>
+            </div>
+            
+            <button class="btn btn-secondary" onclick="clearCurrentPad()" style="margin-top:20px; background:#633;">Clear Pad</button>
+        </div>
+    </div>
+
+    <script>
+        let fullData = { categories: [], sets: {} };
+        let currentSetKey = null;
+        let selectedPadIndex = null;
+
+        // --- 初期化 ---
+        window.onload = () => {
+            initGrid();
+            
+            // ファイル読み込みイベント
+            document.getElementById('json-loader').addEventListener('change', handleJsonLoad);
+            
+            // パッド用ドラッグ＆ドロップ
+            const dz = document.getElementById('drop-zone-pad');
+            const fi = document.getElementById('pad-file-input');
+            dz.onclick = () => fi.click();
+            fi.onchange = (e) => { if(e.target.files[0]) assignFileToPad(e.target.files[0]); };
+            
+            dz.addEventListener('dragover', e => { e.preventDefault(); dz.style.borderColor = '#00ccff'; });
+            dz.addEventListener('dragleave', e => { e.preventDefault(); dz.style.borderColor = '#555'; });
+            dz.addEventListener('drop', e => {
+                e.preventDefault(); dz.style.borderColor = '#555';
+                if(e.dataTransfer.files[0]) assignFileToPad(e.dataTransfer.files[0]);
+            });
+        };
+
+        // --- グリッド生成 ---
+        function initGrid() {
+            const container = document.getElementById('grid-container');
+            container.innerHTML = '';
+            for(let i=0; i<16; i++) {
+                const el = document.createElement('div');
+                el.className = 'pad-cell';
+                el.id = `cell-${i}`;
+                el.onclick = () => selectPad(i);
+                el.innerHTML = `<span class="pad-num">${i}</span><span class="pad-label" id="label-${i}">-</span><span class="pad-mode" id="mode-${i}"></span>`;
+                container.appendChild(el);
+            }
+        }
+
+        // --- JSON読み込み処理 ---
+        function handleJsonLoad(e) {
+            const file = e.target.files[0];
+            if(!file) return;
+
+            const reader = new FileReader();
+            reader.onload = (ev) => {
+                try {
+                    fullData = JSON.parse(ev.target.result);
+                    renderSetList();
+                    alert('データ読み込み完了！編集したいセットを左から選んでください。');
+                } catch(err) {
+                    alert('JSONファイルの読み込みに失敗しました。形式を確認してください。');
+                    console.error(err);
+                }
+            };
+            reader.readAsText(file);
+        }
+
+        // --- セット一覧表示 ---
+        function renderSetList() {
+            const list = document.getElementById('set-list');
+            list.innerHTML = '';
+            
+            const setKeys = Object.keys(fullData.sets);
+            if(setKeys.length === 0) {
+                list.innerHTML = '<div style="padding:10px;">セットが見つかりません</div>';
+                return;
+            }
+
+            setKeys.forEach(key => {
+                const item = document.createElement('div');
+                item.className = 'set-item';
+                item.textContent = fullData.sets[key].name || key;
+                item.onclick = () => loadSet(key);
+                item.id = `set-btn-${key}`;
+                list.appendChild(item);
+            });
+        }
+
+        // --- セット選択時の処理 ---
+        function loadSet(key) {
+            currentSetKey = key;
+            const setData = fullData.sets[key];
+            
+            // UI更新
+            document.querySelectorAll('.set-item').forEach(el => el.classList.remove('active'));
+            document.getElementById(`set-btn-${key}`).classList.add('active');
+            document.getElementById('current-set-title').textContent = `${setData.name} (${key})`;
+            
+            // グリッド描画
+            renderPadVisuals();
+            
+            // 最初のパッドを選択
+            selectPad(0);
+        }
+
+        // --- パッドの見た目更新 ---
+        function renderPadVisuals() {
+            if(!currentSetKey) return;
+            const samples = fullData.sets[currentSetKey].samples;
+            
+            for(let i=0; i<16; i++) {
+                const sample = samples.find(s => s.id === i) || {};
+                const cell = document.getElementById(`cell-${i}`);
+                const labelEl = document.getElementById(`label-${i}`);
+                const modeEl = document.getElementById(`mode-${i}`);
+                
+                labelEl.textContent = sample.label || 'Empty';
+                modeEl.textContent = sample.loop ? 'LOOP' : (sample.mode === 'oneshot' ? 'ONE' : '');
+                
+                if(sample.url) cell.classList.add('has-file');
+                else cell.classList.remove('has-file');
+            }
+        }
+
+        // --- パッド選択（インスペクタ表示） ---
+        function selectPad(index) {
+            if(!currentSetKey) return;
+            selectedPadIndex = index;
+            
+            // グリッド選択状態
+            document.querySelectorAll('.pad-cell').forEach(el => el.classList.remove('selected'));
+            document.getElementById(`cell-${index}`).classList.add('selected');
+            
+            // データ取得
+            const samples = fullData.sets[currentSetKey].samples;
+            // データがなければ初期オブジェクト作成
+            if(!samples.find(s => s.id === index)) {
+                samples.push({ id: index, url: "", label: "", mode: "gate", loop: false });
+                // id順にソートしておく
+                samples.sort((a,b) => a.id - b.id);
+            }
+            const sample = samples.find(s => s.id === index);
+
+            // インスペクタに反映
+            document.getElementById('inspector').classList.add('active');
+            document.getElementById('edit-id').value = index;
+            document.getElementById('edit-url').value = sample.url || '';
+            document.getElementById('edit-label').value = sample.label || '';
+            document.getElementById('edit-mode').value = sample.mode || 'gate';
+            document.getElementById('edit-loop').checked = !!sample.loop;
+            document.getElementById('edit-fadeIn').checked = !!sample.fadeIn;
+            document.getElementById('edit-random').checked = !!sample.randomStart;
+        }
+
+        // --- データ更新処理 ---
+        function updateCurrentPad(key, value) {
+            if(!currentSetKey || selectedPadIndex === null) return;
+            const samples = fullData.sets[currentSetKey].samples;
+            const sample = samples.find(s => s.id === selectedPadIndex);
+            if(sample) {
+                sample[key] = value;
+                renderPadVisuals(); // グリッドの見た目も即時更新
+            }
+        }
+        
+        // --- ファイル割り当て便利機能 ---
+        function assignFileToPad(file) {
+            if(!currentSetKey || selectedPadIndex === null) return;
+            const fileName = file.name;
+            const cleanName = fileName.replace(/\.[^/.]+$/, ""); // 拡張子削除
+            
+            // パスは assets/audio/ をデフォルトとする
+            updateCurrentPad('url', 'assets/audio/' + fileName);
+            // ラベルが空ならファイル名を入れる
+            const labelInput = document.getElementById('edit-label');
+            if(!labelInput.value) {
+                updateCurrentPad('label', cleanName);
+                labelInput.value = cleanName;
+            }
+            // URL欄も更新
+            document.getElementById('edit-url').value = 'assets/audio/' + fileName;
+        }
+
+        function clearCurrentPad() {
+            if(!confirm('このパッドの設定をクリアしますか？')) return;
+            updateCurrentPad('url', '');
+            updateCurrentPad('label', '');
+            updateCurrentPad('mode', 'gate');
+            updateCurrentPad('loop', false);
+            updateCurrentPad('fadeIn', false);
+            updateCurrentPad('randomStart', false);
+            
+            // フォームリセット
+            selectPad(selectedPadIndex);
+        }
+
+        // --- JSON書き出し ---
+        function exportJson() {
+            const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(fullData, null, 2));
+            const downloadAnchorNode = document.createElement('a');
+            downloadAnchorNode.setAttribute("href", dataStr);
+            downloadAnchorNode.setAttribute("download", "data.json");
+            document.body.appendChild(downloadAnchorNode);
+            downloadAnchorNode.click();
+            downloadAnchorNode.remove();
+        }
+    </script>
+</body>
+</html>
