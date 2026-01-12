@@ -1,90 +1,34 @@
 {
   "categories": [
     {
-      "id": "cat-urban",
-      "label": "URBAN",
-      "sets": ["soundscape-tokyo"]
-    },
-    {
-      "id": "cat-nature",
-      "label": "NATURE",
-      "sets": ["soundscape-forest"]
-    },
-    {
       "id": "cat-test",
       "label": "TEST",
       "sets": ["test-20260111"]
     }
   ],
   "sets": {
-    "soundscape-tokyo": {
-      "name": "東京・渋谷駅前",
-      "recorder": "Recorded by Solosola",
-      "image": "https://images.unsplash.com/photo-1542051841857-5f90071e7989?w=1200",
-      "samples": [
-        { "id": 0, "url": "sample1.mp3", "label": "足音", "mode": "gate", "loop": false },
-        { "id": 1, "url": "sample2.mp3", "label": "接近", "mode": "gate", "loop": false },
-        { "id": 2, "url": "sample3.mp3", "label": "雑踏", "mode": "oneshot", "loop": true },
-        { "id": 3, "url": "sample4.mp3", "label": "排気", "mode": "gate", "loop": false },
-        { "id": 4, "url": "sample5.mp3", "label": "鳥鳴", "mode": "gate", "loop": false },
-        { "id": 5, "url": "sample6.mp3", "label": "信号", "mode": "gate", "loop": false },
-        { "id": 6, "url": "sample7.mp3", "label": "放送", "mode": "gate", "loop": false },
-        { "id": 7, "url": "sample8.mp3", "label": "昇降", "mode": "gate", "loop": false },
-        { "id": 8, "url": "sample9.mp3", "label": "救急", "mode": "gate", "loop": false },
-        { "id": 9, "url": "sample10.mp3", "label": "警笛", "mode": "gate", "loop": false },
-        { "id": 10, "url": "sample11.mp3", "label": "販売", "mode": "gate", "loop": false },
-        { "id": 11, "url": "sample12.mp3", "label": "入店", "mode": "gate", "loop": false },
-        { "id": 12, "url": "sample13.mp3", "label": "遠吠", "mode": "gate", "loop": false },
-        { "id": 13, "url": "sample14.mp3", "label": "自転", "mode": "gate", "loop": false },
-        { "id": 14, "url": "sample15.mp3", "label": "雨音", "mode": "oneshot", "loop": true },
-        { "id": 15, "url": "sample16.mp3", "label": "空白", "mode": "gate", "loop": false }
-      ]
-    },
-    "soundscape-forest": {
-      "name": "長野・霧ヶ峰の森",
-      "recorder": "Recorded by Visitor A",
-      "image": "https://images.unsplash.com/photo-1441974231531-c6227db76b6e?w=1200",
-      "samples": [
-        { "id": 0, "url": "samplea.mp3", "label": "落葉", "mode": "gate", "loop": false },
-        { "id": 1, "url": "sampleb.mp3", "label": "小鳥", "mode": "gate", "loop": false },
-        { "id": 2, "url": "samplec.mp3", "label": "葉擦", "mode": "gate", "loop": false },
-        { "id": 3, "url": "sampled.mp3", "label": "遠雷", "mode": "gate", "loop": false },
-        { "id": 4, "url": "samplee.mp3", "label": "羽音", "mode": "gate", "loop": false },
-        { "id": 5, "url": "samplef.mp3", "label": "水流", "mode": "gate", "loop": false },
-        { "id": 6, "url": "sampleg.mp3", "label": "折枝", "mode": "gate", "loop": false },
-        { "id": 7, "url": "sampleh.mp3", "label": "夜鳥", "mode": "gate", "loop": false },
-        { "id": 8, "url": "samplei.mp3", "label": "濃霧", "mode": "gate", "loop": false },
-        { "id": 9, "url": "samplej.mp3", "label": "獣道", "mode": "gate", "loop": false },
-        { "id": 10, "url": "samplek.mp3", "label": "焚火", "mode": "oneshot", "loop": true },
-        { "id": 11, "url": "samplel.mp3", "label": "呼吸", "mode": "gate", "loop": false },
-        { "id": 12, "url": "samplem.mp3", "label": "静寂", "mode": "gate", "loop": false },
-        { "id": 13, "url": "samplen.mp3", "label": "飛翔", "mode": "gate", "loop": false },
-        { "id": 14, "url": "sampleo.mp3", "label": "雫音", "mode": "gate", "loop": false },
-        { "id": 15, "url": "samplep.mp3", "label": "空白", "mode": "gate", "loop": false }
-      ]
-    },
     "test-20260111": {
-    "name": "テスト2026/01/11",
-    "recorder": "Solosola",
-    "image": "assets//image/IMGP6128-2.jpg",
-    "samples": [
-        {"id":0,"url":"assets/audio/test1/Proj1_1-06 Wasteland River.mp3","label":"Proj1_1-06 Wasteland River","mode":"gate","loop":true,"fadeIn":true},
-        {"id":1,"url":"assets/audio/test1/Proj1_1-07 Furueru Tokei.mp3","label":"Proj1_1-07 Furueru Tokei","mode":"gate","loop":true,"fadeIn":true},
-        {"id":2,"url":"assets/audio/test1/Proj1_1-08 Tsugai no kamo.mp3","label":"Proj1_1-08 Tsugai no kamo","mode":"gate","loop":true,"fadeIn":true},
-        {"id":3,"url":"assets/audio/test1/Proj1_1-09 Looper Sample.mp3","label":"Loop A","mode":"gate","loop":true,"fadeIn":true},
-        {"id":4,"url":"assets/audio/test1/Proj1_1-11 Looper Sample.mp3","label":"Loop B","mode":"gate","loop":true,"fadeIn":true},
-        {"id":5,"url":"assets/audio/test1/Proj1_1-12 New Sample.mp3","label":"Nanami and Yo","mode":"gate","loop":false,"randomStart":true,"fadeIn":true},
-        {"id":6,"url":"assets/audio/test1/Proj1_2-05              407.mp3","label":"Kunio and Yo","mode":"gate","loop":false,"randomStart":true,"fadeIn":true},
-        {"id":7,"url":"assets/audio/test1/Proj1_2-16 New Sample.mp3","label":"Echo","mode":"gate","loop":false,"randomStart":true,"fadeIn":true},
-        {"id":8,"url":"assets/audio/test1/Proj1_9-13 I-13.mp3","label":"Bass Drum","mode":"oneshot","loop":false},
-        {"id":9,"url":"assets/audio/test1/Proj5_1-02 New Sample.mp3","label":"Inflection01","mode":"oneshot","loop":false},
-        {"id":10,"url":"assets/audio/test1/Proj5_1-03 New Sample.mp3","label":"Inflection02","mode":"oneshot","loop":false},
-        {"id":11,"url":"assets/audio/test1/Proj5_1-04 New Sample.mp3","label":"Inflection03","mode":"oneshot","loop":false},
-        {"id":12,"url":"assets/audio/test1/Proj5_1-05 New Sample.mp3","label":"Inflection04","mode":"oneshot","loop":false},
-        {"id":13,"url":"assets/audio/test1/Proj5_1-06 New Sample.mp3","label":"Inflection05","mode":"oneshot","loop":false},
-        {"id":14,"url":"assets/audio/test1/Proj5_1-07 New Sample.mp3","label":"Inflection06","mode":"oneshot","loop":false},
-        {"id":15,"url":"assets/audio/test1/Proj5_1-11 Looper Sample.mp3","label":"Inflection Loop","mode":"gate","loop":true}
-    ]
-}
+      "name": "テスト2026/01/11",
+      "recorder": "Solosola",
+      "image": "assets/images/IMGP6128-2.jpg",
+      "samples": [
+        {"id":0,"url":"assets/audio/test-20260111/Proj1_1-06 Wasteland River.mp3","label":"Wasteland River","mode":"gate","loop":true,"fadeIn":true},
+        {"id":1,"url":"assets/audio/test-20260111/Proj1_1-07 Furueru Tokei.mp3","label":"Furueru Tokei","mode":"gate","loop":true,"fadeIn":true},
+        {"id":2,"url":"assets/audio/test-20260111/Proj1_1-08 Tsugai no kamo.mp3","label":"Tsugai no kamo","mode":"gate","loop":true,"fadeIn":true},
+        {"id":3,"url":"assets/audio/test-20260111/Proj1_1-09 Looper Sample.mp3","label":"Loop A","mode":"gate","loop":true,"fadeIn":true},
+        {"id":4,"url":"assets/audio/test-20260111/Proj1_1-11 Looper Sample.mp3","label":"Loop B","mode":"gate","loop":true,"fadeIn":true},
+        {"id":5,"url":"assets/audio/test-20260111/Proj1_1-12 New Sample.mp3","label":"Nanami and Yo","mode":"gate","loop":false,"randomStart":true,"fadeIn":true},
+        {"id":6,"url":"assets/audio/test-20260111/Proj1_2-05              407.mp3","label":"Kunio and Yo","mode":"gate","loop":false,"randomStart":true,"fadeIn":true},
+        {"id":7,"url":"assets/audio/test-20260111/Proj1_2-16 New Sample.mp3","label":"Echo","mode":"gate","loop":false,"randomStart":true,"fadeIn":true},
+        {"id":8,"url":"assets/audio/test-20260111/Proj1_9-13 I-13.mp3","label":"Bass Drum","mode":"oneshot","loop":false},
+        {"id":9,"url":"assets/audio/test-20260111/Proj5_1-02 New Sample.mp3","label":"Inflection01","mode":"oneshot","loop":false},
+        {"id":10,"url":"assets/audio/test-20260111/Proj5_1-03 New Sample.mp3","label":"Inflection02","mode":"oneshot","loop":false},
+        {"id":11,"url":"assets/audio/test-20260111/Proj5_1-04 New Sample.mp3","label":"Inflection03","mode":"oneshot","loop":false},
+        {"id":12,"url":"assets/audio/test-20260111/Proj5_1-05 New Sample.mp3","label":"Inflection04","mode":"oneshot","loop":false},
+        {"id":13,"url":"assets/audio/test-20260111/Proj5_1-06 New Sample.mp3","label":"Inflection05","mode":"oneshot","loop":false},
+        {"id":14,"url":"assets/audio/test-20260111/Proj5_1-07 New Sample.mp3","label":"Inflection06","mode":"oneshot","loop":false},
+        {"id":15,"url":"assets/audio/test-20260111/Proj5_1-11 Looper Sample.mp3","label":"Inflection Loop","mode":"gate","loop":true}
+      ]
+    }
   }
 }
