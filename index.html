@@ -23,28 +23,21 @@
             -webkit-user-select: none; user-select: none; -webkit-touch-callout: none; touch-action: none; 
         }
 
-        /* --- MOBILE LAYOUT (Default) --- */
-        
-        /* 1. Header (Chaos Pad) */
+        /* --- MOBILE LAYOUT --- */
         #mobile-header { 
             display: flex; flex-direction: column; align-items: center; justify-content: center; 
-            height: 22vh; /* 広げました */
-            width: 100%; z-index: 50; position: relative;
-            /* 安全マージン確保: ノッチ対策 */
+            height: 22vh; width: 100%; z-index: 50; position: relative;
             padding-top: max(30px, env(safe-area-inset-top)); 
             box-sizing: border-box;
             border-bottom: 1px solid rgba(255,255,255,0.1); transition: border-color 0.3s;
         }
         #mobile-header.active-fx { border-bottom-color: var(--fx-active-color); }
 
-        /* 2. Main Area (Pads) - Center Alignment */
         #center-col { 
             flex: 1; display: flex; align-items: center; justify-content: center; 
-            width: 100%; position: relative; 
-            overflow: hidden;
+            width: 100%; position: relative; overflow: hidden;
         }
 
-        /* 3. Mobile Footer (Menu & Controls) */
         #mobile-footer {
             display: flex; flex-direction: column; align-items: center; justify-content: flex-end;
             padding-bottom: max(20px, env(safe-area-inset-bottom));
@@ -52,23 +45,18 @@
             background: linear-gradient(to top, #111 80%, transparent);
         }
 
-        /* PC Specific Columns (Hidden on Mobile) */
         #left-col, #right-col { display: none; }
 
-        /* --- PC LAYOUT (Override) --- */
+        /* --- PC LAYOUT --- */
         @media (min-width: 800px) {
             body { flex-direction: row; justify-content: space-between; padding: 0 40px; box-sizing: border-box; }
-            
             #mobile-header, #mobile-footer { display: none !important; }
-            
             #left-col { display: flex; width: 250px; flex-direction: column; justify-content: center; align-items: flex-start; gap: 20px; height: 100%; z-index: 10; }
             #center-col { flex: 1; height: 100%; }
             #right-col { display: flex; width: 300px; flex-direction: column; align-items: center; justify-content: center; gap: 20px; height: 100%; z-index: 10; }
-            
             #pc-info-area { margin-bottom: 20px; }
             #place-name-pc { font-size: 2rem; letter-spacing: 0.2em; font-weight: 100; margin: 0; text-transform: uppercase; }
             #recorder-name-pc { font-size: 0.8rem; opacity: 0.6; letter-spacing: 0.1em; }
-            
             #pc-controls-container { display: flex; gap: 15px; margin-top: 10px; width: 240px; justify-content: space-between; }
         }
 
@@ -76,7 +64,6 @@
         #place-name { margin: 0; font-size: 1.2rem; letter-spacing: 0.15em; font-weight: 300; pointer-events: none; }
         #recorder-name { margin: 5px 0 0 0; font-size: 0.75rem; opacity: 0.6; pointer-events: none; }
 
-        /* FX Pad (PC) */
         #fx-pad-pc {
             width: 240px; height: 240px; 
             border: 1px solid rgba(255,255,255,0.3); border-radius: 4px;
@@ -96,7 +83,6 @@
         }
         .fx-cursor.active { transform: translate(-50%, -50%) scale(1); opacity: 1; }
 
-        /* Sampler Pads */
         #sampler-wrapper { width: 85vmin; height: 85vmin; max-width: 500px; max-height: 500px; position: relative; opacity: 0; transition: opacity 1s; }
         #sampler-container { display: grid; grid-template-columns: repeat(4, 1fr); grid-template-rows: repeat(4, 1fr); gap: 1px; width: 100%; height: 100%; }
 
@@ -105,7 +91,6 @@
             position: relative; background-color: #222; background-size: 400% 400%; background-repeat: no-repeat; cursor: pointer; 
             -webkit-tap-highlight-color: transparent; 
             filter: var(--pad-base);
-            /* ★修正: 復帰は0.5秒固定 */
             transition: filter 0.5s ease-out, box-shadow 0.5s ease-out; 
             box-shadow: inset 0 0 0 rgba(0,0,0,0); 
         }
@@ -127,14 +112,11 @@
 
         /* MENUS */
         .menu-area-pc { margin-top: 20px; width: 100%; }
-        
-        /* Mobile Menu Styles */
         #mobile-menu-wrapper { width: 100%; display: flex; flex-direction: column; align-items: center; margin-bottom: 15px; }
         #mobile-cat-menu { display: flex; gap: 10px; margin-bottom: 10px; flex-wrap: wrap; justify-content: center; }
         #mobile-set-menu { display: flex; gap: 20px; overflow-x: auto; width: 100%; padding: 0 20px; box-sizing: border-box; justify-content: center; -webkit-overflow-scrolling: touch; scrollbar-width: none; }
         #mobile-set-menu::-webkit-scrollbar { display: none; }
 
-        /* Shared Menu Item Styles */
         .category-item { font-size: 0.7rem; letter-spacing: 0.1em; opacity: 0.4; cursor: pointer; padding: 2px 0; border-bottom: 1px solid transparent; }
         .category-item.active { opacity: 1; border-color: #fff; }
         .menu-item { cursor: pointer; font-size: 0.9rem; letter-spacing: 0.05em; opacity: 0.4; transition: opacity 0.2s; white-space: nowrap; flex-shrink: 0; }
@@ -203,9 +185,6 @@
 
     window.addEventListener('contextmenu', e => e.preventDefault(), { passive: false });
     window.addEventListener('load', loadSystemData);
-    
-    // Resize Handler (Display Toggle Only)
-    // 今回はHTMLで構造を分けているので、複雑なDOM操作は不要
     
     function initAudioContext() { 
         if (audioContext) return; 
@@ -293,7 +272,6 @@
 
         const pad = document.getElementById(`pad-${id}`);
         pad.classList.remove('purifying'); 
-        // ★修正: 復帰ロジック簡略化 (CSSの0.5sに任せる)
         pad.style.transition = ""; 
         void pad.offsetWidth; 
         pad.classList.add('active'); 
@@ -317,37 +295,27 @@
         const sampleData = SYSTEM_DATA.sets[currentSetKey].samples[id];
         const now = audioContext.currentTime;
 
-        if (!forceStop && isHoldMode) { return; } 
+        // HOLD Check
+        if (!forceStop && isHoldMode && sampleData.loop) { return; } 
 
-        if (!forceStop && sampleData.mode === 'gate') {
-            pad.classList.remove('active');
-            node.gain.gain.cancelScheduledValues(now);
-            node.gain.gain.setValueAtTime(node.gain.gain.value, now);
-            node.gain.gain.exponentialRampToValueAtTime(0.001, now + 0.3);
-            node.source.stop(now + 0.3);
-            delete playingNodes[id];
-            return;
-        }
-        
-        if (!forceStop && sampleData.mode !== 'gate') {
+        // OneShot Check (Gateじゃないなら、音は止めない。見た目だけフェード)
+        if (!forceStop && sampleData.mode !== 'gate' && !sampleData.loop) {
             pad.classList.remove('active');
             const played = now - node.startTime;
             const remaining = Math.max(0, node.bufferDuration - played);
-            // OneShotのFadeOutもCSSのdefault(0.5s)で良いか、残り時間に合わせるか。
-            // ユーザー要望「復帰時間は戻したい」に従い、ここも動的変更せずデフォルトに任せる手もあるが、
-            // OneShotの残り時間可視化は好評だったので残す。
             pad.style.transition = `filter ${remaining}s linear`;
             return; 
         }
 
+        // --- 停止処理 (Gate, Loop停止, ForceStop) ---
         pad.classList.remove('active');
-        // ★修正: 動的transition削除 (CSSの0.5sでスッと戻る)
-        pad.style.transition = ""; 
-
-        let releaseTime = 0.5; 
-        const pressDuration = now - node.startTime;
         
-        if (pad.classList.contains('purifying') || pressDuration > 0.4) {
+        // ★修正: リリース計算 (Gateであっても長押し/浄化中は長くする)
+        let releaseTime = 0.3; // Default short release
+        const pressDuration = now - node.startTime;
+        const isPurifying = pad.classList.contains('purifying') || pressDuration > 0.4;
+        
+        if (isPurifying) {
             releaseTime = 0.5 + Math.pow(pressDuration * 0.8, 1.2); 
             if (releaseTime > 20) releaseTime = 20; 
         }
@@ -359,7 +327,16 @@
             node.source.stop(now + releaseTime); 
         } catch(e) {}
         
+        // 視覚リセット
         pad.classList.remove('purifying'); 
+        
+        // ★修正: リリース時間に合わせて明るく戻す (解放)
+        if (isPurifying) {
+             pad.style.transition = `filter ${releaseTime}s ease-out, box-shadow ${releaseTime}s ease-out`;
+        } else {
+             pad.style.transition = ""; 
+        }
+
         clearTimeout(pad.dataset.purifyTimer); 
         delete playingNodes[id]; 
     }
@@ -387,6 +364,7 @@
             triggerSample(id); 
             
             const sampleData = SYSTEM_DATA.sets[currentSetKey].samples[id];
+            // Gate Modeなら浄化タイマー起動
             if (sampleData.mode === 'gate') {
                 const timer = setTimeout(() => {
                     if (pad.classList.contains('active') || isHoldMode) {
@@ -407,7 +385,7 @@
         pad.addEventListener('touchend', end); pad.addEventListener('touchcancel', end);
     }
     
-    // UI Helpers & Menu Rendering (Dual Target: PC & Mobile)
+    // UI Helpers & Menu
     function renderPads(setData) { 
         const container = document.getElementById('sampler-container'); container.innerHTML = ''; 
         for (let i = 0; i < 16; i++) { 
@@ -424,7 +402,6 @@
         currentCategory = catId; 
         const catData = SYSTEM_DATA.categories.find(c => c.id === catId);
         
-        // Helper to render into a container
         const fill = (catEl, setEl) => {
             if(!catEl) return;
             catEl.innerHTML = ''; setEl.innerHTML = '';
@@ -441,9 +418,7 @@
             });
         };
         
-        // Render PC
         fill(document.getElementById('pc-cat-menu'), document.getElementById('pc-set-menu'));
-        // Render Mobile
         fill(document.getElementById('mobile-cat-menu'), document.getElementById('mobile-set-menu'));
         
         if (catData.sets.length > 0 && !catData.sets.includes(currentSetKey)) changeSamplerSet(catData.sets[0]); 
