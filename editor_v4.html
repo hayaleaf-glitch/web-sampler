@@ -1,0 +1,566 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Solosola V4 Studio | Cloud Edition</title>
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@100;300;400;700&display=swap" rel="stylesheet">
+    <style>
+        /* --- CSS (Based on V3.5 Style) --- */
+        :root { 
+            --bg-color: #1a1a1a; --panel-color: #252525; --text-color: #e0e0e0; 
+            --accent-color: #00ccff; --border-color: #444; --warn-color: #ff4444; 
+            --success-color: #00ff99;
+        }
+        body { background-color: var(--bg-color); color: var(--text-color); font-family: 'Helvetica Neue', 'Noto Sans JP', sans-serif; margin: 0; display: flex; height: 100vh; overflow: hidden; }
+        
+        /* Layout */
+        #sidebar { width: 280px; background: #111; border-right: 1px solid var(--border-color); display: flex; flex-direction: column; }
+        #main-area { flex: 1; display: flex; flex-direction: column; height: 100%; position: relative; }
+        #inspector { width: 320px; background: var(--panel-color); border-left: 1px solid var(--border-color); display: flex; flex-direction: column; overflow-y: auto; }
+        
+        /* Typography & Buttons */
+        h1, h2, h3 { font-weight: 300; margin: 0; }
+        .btn { border: none; padding: 8px 12px; border-radius: 4px; cursor: pointer; font-weight: bold; transition: opacity 0.2s; font-size: 0.8rem; }
+        .btn:hover { opacity: 0.8; }
+        .btn:disabled { opacity: 0.3; cursor: not-allowed; }
+        .btn-primary { background: var(--accent-color); color: #000; }
+        .btn-danger { background: var(--warn-color); color: #fff; }
+        .btn-google { background: #fff; color: #444; display: flex; align-items: center; justify-content: center; gap: 10px; border: 1px solid #ddd; }
+        .btn-icon { background: transparent; color: #888; font-size: 1rem; padding: 5px; }
+        
+        input[type="text"], select { background: #111; border: 1px solid #555; color: #fff; padding: 8px; border-radius: 4px; width: 100%; box-sizing: border-box; }
+        label { display: block; font-size: 0.75rem; color: #888; margin-bottom: 4px; }
+        
+        /* Sidebar Components */
+        .sidebar-header { padding: 20px; border-bottom: 1px solid var(--border-color); }
+        .project-status { font-size: 0.7rem; color: #666; margin-top: 5px; display: flex; align-items: center; gap: 5px; }
+        .status-dot { width: 8px; height: 8px; border-radius: 50%; background: #555; }
+        .status-dot.active { background: var(--success-color); box-shadow: 0 0 5px var(--success-color); }
+        #user-info { display:none; margin-top:10px; font-size:0.8rem; color:#fff; word-break: break-all; }
+
+        #set-list { flex: 1; overflow-y: auto; }
+        .set-item { 
+            padding: 12px 20px; border-bottom: 1px solid #222; cursor: pointer; display: flex; justify-content: space-between; align-items: center;
+            border-left: 3px solid transparent; transition: background 0.2s;
+        }
+        .set-item:hover { background: #222; }
+        .set-item.active { background: #2a2a2a; border-left-color: var(--accent-color); color: #fff; }
+        .set-name { font-size: 0.9rem; pointer-events: none; }
+        .set-id { font-size: 0.7rem; color: #666; pointer-events: none; }
+        
+        .sidebar-footer { padding: 15px; border-top: 1px solid var(--border-color); display: flex; gap: 10px; }
+        
+        /* Main Area Components */
+        #toolbar { height: 60px; border-bottom: 1px solid var(--border-color); display: flex; align-items: center; padding: 0 20px; justify-content: space-between; background: #222; }
+        #workspace { flex: 1; padding: 30px; overflow-y: auto; display: flex; flex-direction: column; align-items: center; }
+
+        #set-metadata { 
+            width: 100%; max-width: 600px; background: #2a2a2a; padding: 20px; border-radius: 8px; margin-bottom: 20px; 
+            display: grid; grid-template-columns: 1fr 1fr; gap: 15px; border: 1px solid #333;
+        }
+        .meta-full { grid-column: span 2; }
+        
+        #bg-preview { 
+            width: 100%; height: 100px; background: #000; margin-top: 5px; border-radius: 4px; border: 1px dashed #555;
+            display: flex; align-items: center; justify-content: center; font-size: 0.8rem; color: #666; cursor: pointer; background-size: cover; background-position: center;
+        }
+        #bg-preview:hover { border-color: var(--accent-color); color: var(--accent-color); }
+
+        #grid-container { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; width: 500px; height: 500px; }
+        .pad-cell { 
+            background: #333; border-radius: 4px; border: 1px solid #555; position: relative;
+            cursor: pointer; transition: all 0.1s; display: flex; flex-direction: column; justify-content: center; align-items: center;
+        }
+        .pad-cell.selected { border-color: var(--accent-color); box-shadow: 0 0 10px rgba(0,204,255,0.2); background: #383838; }
+        .pad-cell.playing { border-color: var(--success-color); background: #2a4035; }
+        .pad-cell.has-file { background: #2a3540; }
+        .pad-num { position: absolute; top: 5px; left: 8px; font-size: 0.7rem; opacity: 0.3; }
+        .pad-label { font-size: 0.8rem; text-align: center; pointer-events: none; padding: 0 5px; word-break: break-all; }
+        .pad-mode { position: absolute; bottom: 5px; right: 5px; font-size: 0.6rem; color: var(--accent-color); opacity: 0.8; }
+
+        /* Inspector Components */
+        .inspector-header { padding: 20px; border-bottom: 1px solid var(--border-color); }
+        .inspector-content { padding: 20px; }
+        .form-group { margin-bottom: 15px; }
+        #drop-zone-audio {
+            border: 2px dashed #555; padding: 20px; text-align: center; border-radius: 4px; cursor: pointer; color: #888; font-size: 0.8rem; transition: 0.2s;
+        }
+        #drop-zone-audio:hover { border-color: var(--accent-color); color: var(--accent-color); background: rgba(0,204,255,0.05); }
+        #drop-zone-audio.uploading { pointer-events: none; opacity: 0.5; animation: pulse 1s infinite; }
+        @keyframes pulse { 0% { border-color: #555; } 50% { border-color: var(--accent-color); } 100% { border-color: #555; } }
+
+    </style>
+</head>
+<body>
+
+    <div id="sidebar">
+        <div class="sidebar-header">
+            <h1>SOLOSOLA V4</h1>
+            <div class="project-status">
+                <div id="status-dot" class="status-dot"></div>
+                <span id="status-text">Not Connected</span>
+            </div>
+            <button id="btn-login" class="btn btn-google" style="width:100%; margin-top:10px;">
+                <span style="font-weight:bold; color:#4285F4;">G</span> Login with Google
+            </button>
+            <div id="user-info"></div>
+        </div>
+        
+        <div style="padding:10px; display:flex; justify-content:space-between; align-items:center; border-bottom:1px solid #333;">
+            <span style="font-size:0.8rem; color:#888;">MY SETS (CLOUD)</span>
+            <button class="btn-icon" title="New Set" onclick="createNewSet()">＋</button>
+        </div>
+        <div id="set-list"></div>
+
+        <div class="sidebar-footer">
+            <button id="btn-save-all" class="btn btn-primary" style="flex:2;" onclick="saveToCloud()" disabled>💾 SAVE TO CLOUD</button>
+        </div>
+    </div>
+
+    <div id="main-area">
+        <div id="toolbar">
+            <h2 id="toolbar-title">No Set Selected</h2>
+            <div>
+                <button class="btn btn-danger" onclick="deleteCurrentSet()">Delete Set</button>
+                <button class="btn btn-secondary" onclick="duplicateCurrentSet()">Duplicate</button>
+            </div>
+        </div>
+
+        <div id="workspace">
+            <div id="set-metadata" style="display:none;">
+                <div class="meta-full">
+                    <label>Set Name</label>
+                    <input type="text" id="meta-name" oninput="updateMetadata('name', this.value)">
+                </div>
+                <div>
+                    <label>Recorder (Author)</label>
+                    <input type="text" id="meta-recorder" oninput="updateMetadata('recorder', this.value)">
+                </div>
+                <div>
+                    <label>Tag (Optional)</label>
+                    <input type="text" id="meta-tag" placeholder="Urban, Nature..." oninput="updateMetadata('tag', this.value)">
+                </div>
+                <div class="meta-full">
+                    <label>Background Image (Drop image here)</label>
+                    <div id="bg-preview" title="Click or Drop Image">No Image</div>
+                    <input type="file" id="bg-file-input" accept="image/*" style="display:none;">
+                </div>
+            </div>
+
+            <div id="grid-container" style="display:none;"></div>
+        </div>
+    </div>
+
+    <div id="inspector">
+        <div class="inspector-header">
+            <h2>PAD EDITOR</h2>
+        </div>
+        <div id="pad-editor-content" class="inspector-content" style="display:none;">
+            <div class="form-group">
+                <label>PAD ID</label>
+                <input type="text" id="edit-id" readonly disabled>
+            </div>
+            
+            <div class="form-group">
+                <label>Audio File (Drop file to upload)</label>
+                <div id="drop-zone-audio">Drop Audio Here</div>
+                <input type="text" id="edit-url" readonly style="font-size:0.7rem; color:#666; margin-top:5px; border:none; background:transparent;">
+                <button class="btn btn-secondary" style="width:100%; margin-top:5px;" onclick="previewAudio()">▶️ Preview</button>
+            </div>
+
+            <div class="form-group">
+                <label>Label</label>
+                <input type="text" id="edit-label" oninput="updatePadData('label', this.value)">
+            </div>
+
+            <div class="form-group">
+                <label>Mode</label>
+                <select id="edit-mode" onchange="updatePadData('mode', this.value)">
+                    <option value="gate">Gate (Hold)</option>
+                    <option value="oneshot">OneShot</option>
+                </select>
+            </div>
+
+            <div class="form-group">
+                <label>Options</label>
+                <div style="display:flex; flex-direction:column; gap:8px;">
+                    <label><input type="checkbox" id="edit-loop" onchange="updatePadData('loop', this.checked)"> Loop Playback</label>
+                    <label><input type="checkbox" id="edit-fadeIn" onchange="updatePadData('fadeIn', this.checked)"> Fade In (Anti-click)</label>
+                    <label><input type="checkbox" id="edit-random" onchange="updatePadData('randomStart', this.checked)"> Random Start</label>
+                </div>
+            </div>
+            
+            <button class="btn btn-danger" style="width:100%; margin-top:20px;" onclick="clearPad()">Clear Pad</button>
+        </div>
+    </div>
+
+    <script type="module">
+        // Import Firebase SDKs
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
+        import { getAuth, signInWithPopup, GoogleAuthProvider, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
+        import { getFirestore, doc, getDoc, setDoc } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+        import { getStorage, ref, uploadBytes, getDownloadURL } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-storage.js";
+
+        // Your web app's Firebase configuration (Provided by User)
+        const firebaseConfig = {
+            apiKey: "AIzaSyC0yzzu9f6PM0zfnr463jRdsRrXpkqP-YA",
+            authDomain: "solosola-v4.firebaseapp.com",
+            projectId: "solosola-v4",
+            storageBucket: "solosola-v4.firebasestorage.app",
+            messagingSenderId: "937332002715",
+            appId: "1:937332002715:web:17d4933814874b2d7adb3e"
+        };
+
+        // Initialize Firebase
+        const app = initializeApp(firebaseConfig);
+        const auth = getAuth(app);
+        const db = getFirestore(app);
+        const storage = getStorage(app);
+
+        // --- GLOBAL STATE ---
+        let currentUser = null;
+        let projectData = { sets: {} }; // Main Data Structure (JSON)
+        let currentSetKey = null;
+        let currentPadId = null;
+        let audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        let currentSource = null;
+
+        // --- AUTHENTICATION LOGIC ---
+        const btnLogin = document.getElementById('btn-login');
+        const userInfo = document.getElementById('user-info');
+        const statusText = document.getElementById('status-text');
+        const statusDot = document.getElementById('status-dot');
+
+        // Login Handler
+        btnLogin.addEventListener('click', () => {
+            const provider = new GoogleAuthProvider();
+            signInWithPopup(auth, provider).catch(error => {
+                console.error("Login Failed:", error);
+                alert("Login Failed: " + error.message);
+            });
+        });
+
+        // Auth State Monitor
+        onAuthStateChanged(auth, async (user) => {
+            if (user) {
+                // Logged In
+                currentUser = user;
+                btnLogin.style.display = 'none';
+                userInfo.style.display = 'block';
+                userInfo.innerText = `User: ${user.email}`;
+                statusText.innerText = "Connected to Cloud";
+                statusDot.classList.add('active');
+                document.getElementById('btn-save-all').disabled = false;
+                
+                // Load User Data from Firestore immediately
+                await loadUserData();
+            } else {
+                // Logged Out
+                currentUser = null;
+                btnLogin.style.display = 'flex';
+                userInfo.style.display = 'none';
+                statusText.innerText = "Not Connected";
+                statusDot.classList.remove('active');
+                document.getElementById('set-list').innerHTML = ''; // Clear list
+            }
+        });
+
+        // --- CLOUD DATA LOGIC (Firestore) ---
+
+        // Load Data: Read "users/{uid}" document
+        async function loadUserData() {
+            if (!currentUser) return;
+            try {
+                // We use a single document "main_data" inside the user's collection for simplicity in Phase 1
+                const docRef = doc(db, "users", currentUser.uid);
+                const docSnap = await getDoc(docRef);
+
+                if (docSnap.exists()) {
+                    projectData = docSnap.data();
+                    if(!projectData.sets) projectData.sets = {};
+                } else {
+                    // Initialize empty data if new user
+                    projectData = { sets: {} };
+                }
+                renderSetList();
+            } catch (e) {
+                console.error("Load Error:", e);
+                alert("データの読み込みに失敗しました: " + e.message);
+            }
+        }
+
+        // Save Data: Write to "users/{uid}" document
+        window.saveToCloud = async function() {
+            if (!currentUser) return;
+            const btn = document.getElementById('btn-save-all');
+            const originalText = btn.innerText;
+            btn.innerText = "Saving...";
+            btn.disabled = true;
+
+            try {
+                const docRef = doc(db, "users", currentUser.uid);
+                // Save the entire JSON object
+                await setDoc(docRef, projectData);
+                
+                btn.innerText = "✅ SAVED!";
+                setTimeout(() => { 
+                    btn.innerText = originalText; 
+                    btn.disabled = false;
+                }, 1500);
+            } catch (e) {
+                console.error("Save Error:", e);
+                alert("保存に失敗しました: " + e.message);
+                btn.innerText = originalText;
+                btn.disabled = false;
+            }
+        };
+
+        // --- UI LOGIC (Ported from V3.5) ---
+
+        window.createNewSet = function() {
+            if (!currentUser) return alert("Please Login first.");
+            const id = prompt("新しいセットIDを入力してください (英数字推奨)", "set_" + Date.now());
+            if (!id) return;
+            // Prevent overwriting existing key by accident
+            if (projectData.sets[id]) return alert("ID already exists.");
+            
+            projectData.sets[id] = {
+                name: "New Set",
+                recorder: currentUser.displayName || "Unknown",
+                image: "",
+                tag: "",
+                // Initialize 16 empty pads
+                samples: Array(16).fill(null).map((_, i) => ({ id: i, url: "", label: "", mode: "gate", loop: false }))
+            };
+            
+            renderSetList();
+            selectSet(id);
+        };
+
+        window.deleteCurrentSet = function() {
+            if(!confirm(`セット "${currentSetKey}" を削除しますか？`)) return;
+            delete projectData.sets[currentSetKey];
+            currentSetKey = null;
+            renderSetList();
+            document.getElementById('set-metadata').style.display = 'none';
+            document.getElementById('grid-container').style.display = 'none';
+        };
+
+        window.duplicateCurrentSet = function() {
+            const newId = prompt(`"${currentSetKey}" のコピーを作成します。新ID:`, currentSetKey + "_copy");
+            if(!newId || projectData.sets[newId]) return;
+            const copy = JSON.parse(JSON.stringify(projectData.sets[currentSetKey]));
+            copy.name += " (Copy)";
+            projectData.sets[newId] = copy;
+            renderSetList();
+            selectSet(newId);
+        };
+
+        function renderSetList() {
+            const list = document.getElementById('set-list');
+            list.innerHTML = '';
+            Object.keys(projectData.sets).forEach(key => {
+                const set = projectData.sets[key];
+                const el = document.createElement('div');
+                el.className = `set-item ${key === currentSetKey ? 'active' : ''}`;
+                el.innerHTML = `<span class="set-name">${set.name}</span><span class="set-id">${key}</span>`;
+                el.onclick = () => selectSet(key);
+                list.appendChild(el);
+            });
+        }
+
+        function selectSet(key) {
+            currentSetKey = key;
+            const setData = projectData.sets[key];
+            renderSetList(); // Update highlight
+            
+            document.getElementById('toolbar-title').innerText = setData.name;
+            document.getElementById('set-metadata').style.display = 'grid';
+            document.getElementById('grid-container').style.display = 'grid';
+            
+            // Fill Metadata Inputs
+            document.getElementById('meta-name').value = setData.name;
+            document.getElementById('meta-recorder').value = setData.recorder;
+            document.getElementById('meta-tag').value = setData.tag || "";
+            
+            updateBgPreview(setData.image);
+            renderGrid();
+        }
+
+        function updateBgPreview(url) {
+            const prev = document.getElementById('bg-preview');
+            if(url) {
+                prev.innerText = "";
+                prev.style.backgroundImage = `url('${url}')`;
+            } else {
+                prev.style.backgroundImage = 'none';
+                prev.innerText = "No Image (Drop Here)";
+            }
+        }
+
+        // --- GRID & PAD LOGIC ---
+
+        function renderGrid() {
+            const container = document.getElementById('grid-container');
+            container.innerHTML = '';
+            const samples = projectData.sets[currentSetKey].samples;
+            
+            for(let i=0; i<16; i++) {
+                const sample = samples.find(s => s.id === i) || {id:i};
+                const el = document.createElement('div');
+                el.className = `pad-cell ${sample.url ? 'has-file' : ''}`;
+                el.id = `pad-${i}`;
+                el.onclick = () => selectPad(i);
+                el.innerHTML = `
+                    <span class="pad-num">${i}</span>
+                    <span class="pad-label">${sample.label || ''}</span>
+                    <span class="pad-mode">${sample.mode === 'gate' ? 'GATE' : 'ONE'}</span>
+                `;
+                container.appendChild(el);
+            }
+            document.getElementById('pad-editor-content').style.display = 'none';
+        }
+
+        function selectPad(id) {
+            currentPadId = id;
+            document.querySelectorAll('.pad-cell').forEach(el => el.classList.remove('selected'));
+            document.getElementById(`pad-${id}`).classList.add('selected');
+            
+            const samples = projectData.sets[currentSetKey].samples;
+            let sample = samples.find(s => s.id === id);
+            if(!sample) {
+                sample = { id: id, mode: 'gate', loop: false, url: "", label: "" };
+                samples.push(sample);
+                samples.sort((a,b)=>a.id-b.id);
+            }
+
+            document.getElementById('pad-editor-content').style.display = 'block';
+            document.getElementById('edit-id').value = id;
+            document.getElementById('edit-url').value = sample.url || '';
+            document.getElementById('edit-label').value = sample.label || '';
+            document.getElementById('edit-mode').value = sample.mode || 'gate';
+            document.getElementById('edit-loop').checked = !!sample.loop;
+            document.getElementById('edit-fadeIn').checked = !!sample.fadeIn;
+            document.getElementById('edit-random').checked = !!sample.randomStart;
+        }
+
+        // Helpers exposed to global scope
+        window.updateMetadata = function(field, value) {
+            if(!currentSetKey) return;
+            const set = projectData.sets[currentSetKey];
+            set[field] = value;
+            if (field === 'name') document.getElementById('toolbar-title').innerText = value;
+        };
+
+        window.updatePadData = function(field, value) {
+            if(!currentSetKey || currentPadId === null) return;
+            const samples = projectData.sets[currentSetKey].samples;
+            const sample = samples.find(s => s.id === currentPadId);
+            if(sample) {
+                sample[field] = value;
+                renderGrid();
+                document.getElementById(`pad-${currentPadId}`).classList.add('selected');
+            }
+        };
+
+        window.previewAudio = async function() {
+            if(!currentSetKey || currentPadId === null) return;
+            const sample = projectData.sets[currentSetKey].samples.find(s => s.id === currentPadId);
+            if(!sample || !sample.url) return;
+            
+            if(currentSource) { currentSource.stop(); currentSource = null; }
+            
+            try {
+                // Fetch directly from Cloud URL
+                const res = await fetch(sample.url);
+                const buf = await res.arrayBuffer();
+                const audioBuf = await audioCtx.decodeAudioData(buf);
+                const src = audioCtx.createBufferSource();
+                src.buffer = audioBuf;
+                src.connect(audioCtx.destination);
+                src.start(0);
+                currentSource = src;
+                
+                const pad = document.getElementById(`pad-${currentPadId}`);
+                pad.classList.add('playing');
+                setTimeout(() => pad.classList.remove('playing'), Math.min(audioBuf.duration * 1000, 500));
+            } catch(e) { console.error(e); }
+        };
+        
+        window.clearPad = function() {
+            if(!confirm("Clear this pad?")) return;
+            window.updatePadData('url', '');
+            window.updatePadData('label', '');
+            document.getElementById('edit-url').value = "";
+            document.getElementById('edit-label').value = "";
+        };
+
+        // --- STORAGE UPLOAD LOGIC (Firebase Storage) ---
+
+        const dropAudio = document.getElementById('drop-zone-audio');
+        dropAudio.addEventListener('dragover', e => { e.preventDefault(); dropAudio.style.borderColor = '#00ccff'; });
+        dropAudio.addEventListener('dragleave', e => { e.preventDefault(); dropAudio.style.borderColor = '#555'; });
+        dropAudio.addEventListener('drop', async e => {
+            e.preventDefault(); dropAudio.style.borderColor = '#555';
+            if(e.dataTransfer.files[0] && currentUser) {
+                await uploadFileToCloud(e.dataTransfer.files[0], 'audio');
+            }
+        });
+
+        const dropBg = document.getElementById('bg-preview');
+        dropBg.addEventListener('dragover', e => { e.preventDefault(); dropBg.style.borderColor = '#00ccff'; });
+        dropBg.addEventListener('dragleave', e => { e.preventDefault(); dropBg.style.borderColor = '#555'; });
+        dropBg.addEventListener('drop', async e => {
+            e.preventDefault(); dropBg.style.borderColor = '#555';
+            if(e.dataTransfer.files[0] && e.dataTransfer.files[0].type.startsWith('image/') && currentUser) {
+                await uploadFileToCloud(e.dataTransfer.files[0], 'image');
+            }
+        });
+        dropBg.addEventListener('click', () => document.getElementById('bg-file-input').click());
+        document.getElementById('bg-file-input').addEventListener('change', async e => {
+            if(e.target.files[0] && currentUser) await uploadFileToCloud(e.target.files[0], 'image');
+        });
+
+        async function uploadFileToCloud(file, type) {
+            if(!currentSetKey) return alert("Select a set first.");
+            
+            const dz = type === 'audio' ? document.getElementById('drop-zone-audio') : document.getElementById('bg-preview');
+            const originalText = dz.innerText;
+            dz.innerText = "Uploading...";
+            dz.classList.add('uploading');
+
+            try {
+                // Storage Path: users/{uid}/{setKey}/{timestamp_filename}
+                const path = `users/${currentUser.uid}/${currentSetKey}/${Date.now()}_${file.name}`;
+                const storageRef = ref(storage, path);
+                
+                // Upload
+                const snapshot = await uploadBytes(storageRef, file);
+                // Get URL
+                const downloadURL = await getDownloadURL(snapshot.ref);
+                
+                if (type === 'audio') {
+                    window.updatePadData('url', downloadURL);
+                    if(!document.getElementById('edit-label').value) {
+                        const cleanName = file.name.replace(/\.[^/.]+$/, "");
+                        window.updatePadData('label', cleanName);
+                        document.getElementById('edit-label').value = cleanName;
+                    }
+                    document.getElementById('edit-url').value = downloadURL;
+                } else {
+                    window.updateMetadata('image', downloadURL);
+                    updateBgPreview(downloadURL);
+                }
+
+            } catch (error) {
+                console.error("Upload failed", error);
+                alert("Upload failed: " + error.message);
+            } finally {
+                dz.innerText = originalText;
+                dz.classList.remove('uploading');
+            }
+        }
+    </script>
+</body>
+</html>
