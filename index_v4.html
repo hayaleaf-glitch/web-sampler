@@ -1,0 +1,550 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <title>Solosola V4 | Cloud Player</title>
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="theme-color" content="#111111">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@100;300&display=swap" rel="stylesheet">
+    <style>
+        :root { --bg-color: #111111; --text-color: #ffffff; --fx-active-color: #00ccff; --pad-base: brightness(1.0) grayscale(0.2); --pad-active: brightness(1.8) grayscale(0); --pad-dark: brightness(0.1) grayscale(1.0) blur(4px); }
+        
+        body { 
+            background-color: var(--bg-color); color: var(--text-color); 
+            font-family: 'Helvetica Neue', 'Noto Sans JP', sans-serif; font-weight: 100; 
+            margin: 0; height: 100vh; overflow: hidden; 
+            display: flex; flex-direction: column; 
+            -webkit-user-select: none; user-select: none; -webkit-touch-callout: none; touch-action: none; 
+        }
+
+        /* --- UI COMPONENTS --- */
+        
+        /* LOGIN OVERLAY */
+        #login-overlay {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: #000; z-index: 1000;
+            display: flex; flex-direction: column; align-items: center; justify-content: center;
+        }
+        .btn-login {
+            background: #fff; color: #333; border: none; padding: 15px 30px; font-size: 1rem; border-radius: 30px;
+            font-weight: bold; cursor: pointer; display: flex; align-items: center; gap: 10px;
+        }
+
+        /* MOBILE LAYOUT */
+        #mobile-header { 
+            display: flex; flex-direction: column; align-items: center; justify-content: center; 
+            height: 22vh; width: 100%; z-index: 50; position: relative;
+            padding-top: max(30px, env(safe-area-inset-top)); 
+            box-sizing: border-box;
+            border-bottom: 1px solid rgba(255,255,255,0.1); transition: border-color 0.3s;
+        }
+        #mobile-header.active-fx { border-bottom-color: var(--fx-active-color); }
+
+        #center-col { 
+            flex: 1; display: flex; align-items: center; justify-content: center; 
+            width: 100%; position: relative; overflow: hidden;
+        }
+
+        #mobile-footer {
+            display: flex; flex-direction: column; align-items: center; justify-content: flex-end;
+            padding-bottom: max(20px, env(safe-area-inset-bottom));
+            width: 100%; z-index: 40;
+            background: linear-gradient(to top, #111 80%, transparent);
+        }
+
+        #left-col, #right-col { display: none; }
+
+        /* PC LAYOUT */
+        @media (min-width: 800px) {
+            body { flex-direction: row; justify-content: space-between; padding: 0 40px; box-sizing: border-box; }
+            #mobile-header, #mobile-footer { display: none !important; }
+            #left-col { display: flex; width: 250px; flex-direction: column; justify-content: center; align-items: flex-start; gap: 20px; height: 100%; z-index: 10; }
+            #center-col { flex: 1; height: 100%; }
+            #right-col { display: flex; width: 300px; flex-direction: column; align-items: center; justify-content: center; gap: 20px; height: 100%; z-index: 10; }
+            #pc-info-area { margin-bottom: 20px; }
+            #place-name-pc { font-size: 2rem; letter-spacing: 0.2em; font-weight: 100; margin: 0; text-transform: uppercase; }
+            #recorder-name-pc { font-size: 0.8rem; opacity: 0.6; letter-spacing: 0.1em; }
+            #pc-controls-container { display: flex; gap: 15px; margin-top: 10px; width: 240px; justify-content: space-between; }
+        }
+
+        /* COMMON ELEMENTS */
+        #place-name { margin: 0; font-size: 1.2rem; letter-spacing: 0.15em; font-weight: 300; pointer-events: none; }
+        #recorder-name { margin: 5px 0 0 0; font-size: 0.75rem; opacity: 0.6; pointer-events: none; }
+
+        #fx-pad-pc {
+            width: 240px; height: 240px; 
+            border: 1px solid rgba(255,255,255,0.3); border-radius: 4px;
+            position: relative; overflow: hidden; transition: all 0.3s; cursor: crosshair;
+            background: linear-gradient(rgba(255,255,255,0.05) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.05) 1px, transparent 1px);
+            background-size: 24px 24px;
+        }
+        #fx-pad-pc::before { content: "Y: FILTER"; position: absolute; top: 10px; left: 10px; font-size: 0.6rem; opacity: 0.3; pointer-events: none; letter-spacing: 0.1em; writing-mode: vertical-rl; }
+        #fx-pad-pc::after { content: "X: REVERB"; position: absolute; bottom: 10px; right: 10px; font-size: 0.6rem; opacity: 0.3; pointer-events: none; letter-spacing: 0.1em; }
+        #fx-pad-pc.active { box-shadow: 0 0 20px var(--fx-active-color); border-color: var(--fx-active-color); }
+        
+        .fx-cursor { 
+            position: absolute; width: 20px; height: 20px; border-radius: 50%; 
+            border: 1px solid rgba(255,255,255,0.8); background: rgba(0, 204, 255, 0.3);
+            box-shadow: 0 0 15px rgba(0, 204, 255, 0.6); pointer-events: none; 
+            transform: translate(-50%, -50%) scale(0); transition: transform 0.1s, opacity 0.1s; opacity: 0; z-index: 100;
+        }
+        .fx-cursor.active { transform: translate(-50%, -50%) scale(1); opacity: 1; }
+
+        #sampler-wrapper { width: 85vmin; height: 85vmin; max-width: 500px; max-height: 500px; position: relative; opacity: 0; transition: opacity 1s; }
+        #sampler-container { display: grid; grid-template-columns: repeat(4, 1fr); grid-template-rows: repeat(4, 1fr); gap: 1px; width: 100%; height: 100%; }
+
+        /* PADS */
+        .pad { 
+            position: relative; background-color: #222; background-size: 400% 400%; background-repeat: no-repeat; cursor: pointer; 
+            -webkit-tap-highlight-color: transparent; 
+            filter: var(--pad-base);
+            transition: filter 0.5s ease-out, box-shadow 0.5s ease-out; 
+            box-shadow: inset 0 0 0 rgba(0,0,0,0); 
+        }
+        .pad.active { filter: var(--pad-active); transition: filter 0.05s ease-out; z-index: 2; }
+        .pad.purifying { 
+            filter: var(--pad-dark); z-index: 3; 
+            transition: filter 10s ease-in-out, box-shadow 10s ease-in-out; 
+            box-shadow: inset 0 0 80px rgba(0,0,0,1); 
+        }
+        .pad-label { position: absolute; bottom: 5px; right: 5px; font-size: 0.6rem; opacity: 0.5; font-weight: 100; pointer-events: none; text-shadow: 0 0 2px black; }
+
+        .control-btn { 
+            border: 1px solid var(--text-color); padding: 8px 20px; font-size: 0.8rem; letter-spacing: 0.1em; 
+            color: var(--text-color); background: transparent; cursor: pointer; transition: all 0.2s; opacity: 0.6; 
+            border-radius: 20px; text-align: center; min-width: 60px;
+        }
+        .control-btn.active { background: var(--text-color); color: var(--bg-color); opacity: 1; box-shadow: 0 0 10px rgba(255,255,255,0.3); }
+        #fx-btn-pc.active, #fx-btn-mobile.active { background: var(--fx-active-color); border-color: var(--fx-active-color); color: #000; box-shadow: 0 0 15px var(--fx-active-color); }
+
+        /* MENUS */
+        .menu-area-pc { margin-top: 20px; width: 100%; }
+        #mobile-menu-wrapper { width: 100%; display: flex; flex-direction: column; align-items: center; margin-bottom: 15px; }
+        #mobile-set-menu { display: flex; gap: 20px; overflow-x: auto; width: 100%; padding: 0 20px; box-sizing: border-box; justify-content: center; -webkit-overflow-scrolling: touch; scrollbar-width: none; }
+        #mobile-set-menu::-webkit-scrollbar { display: none; }
+        
+        .menu-item { cursor: pointer; font-size: 0.9rem; letter-spacing: 0.05em; opacity: 0.4; transition: opacity 0.2s; white-space: nowrap; flex-shrink: 0; }
+        .menu-item.active { opacity: 1; text-shadow: 0 0 5px rgba(255,255,255,0.3); }
+
+        #loading-indicator { position: absolute; font-size: 0.8rem; letter-spacing: 0.2em; opacity: 0.7; animation: blink 1.5s infinite; top: 50%; left: 50%; transform: translate(-50%, -50%); pointer-events: none; }
+        @keyframes blink { 0%, 100% { opacity: 0.3; } 50% { opacity: 1; } }
+    </style>
+</head>
+<body>
+    <div id="login-overlay">
+        <h1 style="letter-spacing: 0.2em; font-weight: 100; margin-bottom: 30px;">SOLOSOLA V4</h1>
+        <button id="btn-login" class="btn-login">Login with Google</button>
+        <div id="login-status" style="margin-top: 20px; font-size: 0.8rem; opacity: 0.6;">Waiting for login...</div>
+    </div>
+
+    <div id="loading-indicator" style="display:none;">SYSTEM BOOT...</div>
+
+    <div id="mobile-header">
+        <h1 id="place-name">SOLOSOLA</h1>
+        <p id="recorder-name">Cloud Media</p>
+        <div id="mobile-fx-cursor" class="fx-cursor"></div>
+    </div>
+
+    <div id="left-col">
+        <div id="pc-info-area">
+            <h1 id="place-name-pc">SOLOSOLA</h1>
+            <p id="recorder-name-pc">Cloud Media</p>
+        </div>
+        <div class="menu-area-pc">
+            <div id="pc-set-menu" style="display:flex; gap:20px; flex-direction: column;"></div>
+        </div>
+    </div>
+
+    <div id="center-col">
+        <div id="sampler-wrapper">
+            <div id="sampler-container"></div>
+        </div>
+    </div>
+
+    <div id="right-col">
+        <div id="fx-pad-pc">
+            <div id="pc-fx-cursor" class="fx-cursor"></div>
+        </div>
+        <div id="pc-controls-container">
+            <div id="hold-btn-pc" class="control-btn" onclick="toggleHoldMode()">HOLD (H)</div>
+            <div id="fx-btn-pc" class="control-btn" onclick="toggleFxMode()">FX (Enter)</div>
+        </div>
+    </div>
+
+    <div id="mobile-footer">
+        <div style="display:flex; gap:15px; margin-bottom:20px;">
+            <div id="hold-btn-mobile" class="control-btn" onclick="toggleHoldMode()">HOLD</div>
+            <div id="fx-btn-mobile" class="control-btn" onclick="toggleFxMode()">FX</div>
+        </div>
+        <div id="mobile-menu-wrapper">
+            <div id="mobile-set-menu"></div>
+        </div>
+    </div>
+
+    <script type="module">
+        // Import Firebase SDKs
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
+        import { getAuth, signInWithPopup, GoogleAuthProvider, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
+        import { getFirestore, doc, getDoc } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+
+        // Your web app's Firebase configuration
+        const firebaseConfig = {
+            apiKey: "AIzaSyC0yzzu9f6PM0zfnr463jRdsRrXpkqP-YA",
+            authDomain: "solosola-v4.firebaseapp.com",
+            projectId: "solosola-v4",
+            storageBucket: "solosola-v4.firebasestorage.app",
+            messagingSenderId: "937332002715",
+            appId: "1:937332002715:web:17d4933814874b2d7adb3e"
+        };
+
+        // Initialize Firebase
+        const app = initializeApp(firebaseConfig);
+        const auth = getAuth(app);
+        const db = getFirestore(app);
+
+        // --- GLOBAL VARIABLES ---
+        let SYSTEM_DATA = { sets: {} };
+        let currentSetKey = null;
+        let audioContext;
+        const audioBuffers = new Array(16);
+        const playingNodes = {};
+        const pressedKeys = new Set();
+        let isHoldMode = false, isFxMode = false;
+        let masterFilterNode, masterReverbNode, masterReverbGain, masterDryGain, masterCompressor;
+
+        // --- AUTH & LOAD LOGIC ---
+        const loginOverlay = document.getElementById('login-overlay');
+        const loginBtn = document.getElementById('btn-login');
+        const loginStatus = document.getElementById('login-status');
+        const loadingInd = document.getElementById('loading-indicator');
+
+        loginBtn.addEventListener('click', () => {
+            const provider = new GoogleAuthProvider();
+            signInWithPopup(auth, provider).catch(err => {
+                loginStatus.innerText = "Error: " + err.message;
+            });
+        });
+
+        onAuthStateChanged(auth, async (user) => {
+            if (user) {
+                loginStatus.innerText = "Connected! Loading data...";
+                loadingInd.style.display = 'block';
+                loginOverlay.style.display = 'none'; // Hide login screen
+                
+                await loadCloudData(user.uid);
+            } else {
+                loginOverlay.style.display = 'flex';
+            }
+        });
+
+        async function loadCloudData(uid) {
+            try {
+                const docRef = doc(db, "users", uid);
+                const docSnap = await getDoc(docRef);
+
+                if (docSnap.exists()) {
+                    const data = docSnap.data();
+                    if(data.sets) {
+                        SYSTEM_DATA.sets = data.sets;
+                        setupMenus();
+                        // Load first set automatically
+                        const firstKey = Object.keys(data.sets)[0];
+                        if(firstKey) changeSamplerSet(firstKey);
+                    } else {
+                        alert("No Sets found in cloud. Create one in Studio first.");
+                    }
+                } else {
+                    alert("No Data found. Please create data in Studio (Editor).");
+                }
+            } catch (error) {
+                console.error("Load Error:", error);
+                alert("Failed to load cloud data.");
+            } finally {
+                loadingInd.style.display = 'none';
+            }
+        }
+
+        // --- UI & AUDIO LOGIC (From V3.5, Adapted for Cloud) ---
+
+        function setupMenus() {
+            const mobileMenu = document.getElementById('mobile-set-menu');
+            const pcMenu = document.getElementById('pc-set-menu');
+            mobileMenu.innerHTML = ''; pcMenu.innerHTML = '';
+
+            Object.keys(SYSTEM_DATA.sets).forEach(key => {
+                const set = SYSTEM_DATA.sets[key];
+                
+                // PC Item
+                const pcEl = document.createElement('div');
+                pcEl.className = 'menu-item';
+                pcEl.textContent = set.name;
+                pcEl.onclick = () => changeSamplerSet(key);
+                pcMenu.appendChild(pcEl);
+
+                // Mobile Item
+                const mobEl = document.createElement('div');
+                mobEl.className = 'menu-item';
+                mobEl.textContent = set.name;
+                mobEl.onclick = () => changeSamplerSet(key);
+                mobileMenu.appendChild(mobEl);
+            });
+        }
+
+        // Expose to window for HTML onclick events
+        window.changeSamplerSet = async function(setKey) {
+            if (!SYSTEM_DATA.sets[setKey]) return;
+            
+            // Highlight Menu
+            document.querySelectorAll('.menu-item').forEach(el => {
+                el.classList.toggle('active', el.textContent === SYSTEM_DATA.sets[setKey].name);
+            });
+
+            if (!audioContext) initAudioContext();
+            stopAllSounds(true);
+            currentSetKey = setKey;
+            const newData = SYSTEM_DATA.sets[setKey];
+            
+            // Update Text
+            const p1 = document.getElementById('place-name'); if(p1) p1.textContent = newData.name;
+            const p2 = document.getElementById('place-name-pc'); if(p2) p2.textContent = newData.name;
+            const r1 = document.getElementById('recorder-name'); if(r1) r1.textContent = newData.recorder;
+            const r2 = document.getElementById('recorder-name-pc'); if(r2) r2.textContent = newData.recorder;
+
+            renderPads(newData);
+            document.getElementById('sampler-wrapper').style.opacity = 0.5; // Dim while loading
+            await preloadAllSamples(newData);
+            document.getElementById('sampler-wrapper').style.opacity = 1;
+        };
+
+        function renderPads(setData) {
+            const container = document.getElementById('sampler-container'); 
+            container.innerHTML = '';
+            for (let i = 0; i < 16; i++) {
+                const sample = setData.samples.find(s => s.id === i) || { id: i, label: "" };
+                const pad = document.createElement('div'); 
+                pad.className = 'pad'; 
+                pad.id = `pad-${i}`; 
+                pad.dataset.id = i; 
+                
+                // Background Image Logic
+                if(setData.image) {
+                    pad.style.backgroundImage = `url('${setData.image}')`;
+                    const col = i % 4; const row = Math.floor(i / 4);
+                    pad.style.backgroundPosition = `${col*(100/3)}% ${row*(100/3)}%`;
+                }
+
+                const label = document.createElement('span'); 
+                label.className = 'pad-label'; 
+                label.textContent = sample.label; 
+                pad.appendChild(label); 
+                
+                attachEvents(pad); 
+                container.appendChild(pad);
+            }
+        }
+
+        async function preloadAllSamples(setData) {
+            const loadPromises = setData.samples.map(async (sample) => {
+                if (!sample || !sample.url) return;
+                try {
+                    // Direct fetch from Firebase Storage URL
+                    const response = await fetch(sample.url);
+                    const buf = await response.arrayBuffer();
+                    audioBuffers[sample.id] = await audioContext.decodeAudioData(buf);
+                } catch (e) {
+                    console.error("Audio Load Error:", e);
+                }
+            });
+            await Promise.all(loadPromises);
+        }
+
+        // --- AUDIO ENGINE (Core Spine) ---
+        function initAudioContext() { 
+            if (audioContext) return; 
+            try { 
+                audioContext = new (window.AudioContext || window.webkitAudioContext)(); 
+                setupMasterFX(); 
+            } catch (e) { console.error("Audio API Error"); } 
+        }
+        function checkAudioContext() { if (audioContext && audioContext.state === 'suspended') audioContext.resume(); }
+        document.addEventListener('touchstart', checkAudioContext); document.addEventListener('mousedown', checkAudioContext);
+
+        function setupMasterFX() { 
+            masterFilterNode = audioContext.createBiquadFilter(); 
+            masterFilterNode.type = 'lowpass'; masterFilterNode.frequency.value = 20000; masterFilterNode.Q.value = 1; 
+            masterReverbNode = audioContext.createConvolver(); masterReverbNode.buffer = createReverbBuffer(2.0); 
+            masterDryGain = audioContext.createGain(); masterDryGain.gain.value = 1.0; 
+            masterReverbGain = audioContext.createGain(); masterReverbGain.gain.value = 0.0; 
+            masterCompressor = audioContext.createDynamicsCompressor();
+            masterCompressor.threshold.value = -10; masterCompressor.knee.value = 30; masterCompressor.ratio.value = 12; masterCompressor.attack.value = 0.003; masterCompressor.release.value = 0.25;
+
+            masterFilterNode.connect(masterDryGain); masterFilterNode.connect(masterReverbNode); 
+            masterReverbNode.connect(masterReverbGain); 
+            masterDryGain.connect(masterCompressor); masterReverbGain.connect(masterCompressor); 
+            masterCompressor.connect(audioContext.destination); 
+        }
+
+        function createReverbBuffer(duration) { 
+            const sampleRate = audioContext.sampleRate; const length = sampleRate * duration; 
+            const impulse = audioContext.createBuffer(2, length, sampleRate); 
+            for (let i = 0; i < length; i++) { 
+                impulse.getChannelData(0)[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / length, 2.0); 
+                impulse.getChannelData(1)[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / length, 2.0); 
+            } return impulse; 
+        }
+
+        function triggerSample(id) { 
+            checkAudioContext(); if (!audioContext) initAudioContext();
+            const sampleData = SYSTEM_DATA.sets[currentSetKey].samples.find(s => s.id == id);
+            const buffer = audioBuffers[parseInt(id)]; 
+            if (!buffer || !sampleData) return false; 
+
+            if (playingNodes[id]) stopSample(id, true);
+
+            const source = audioContext.createBufferSource(); source.buffer = buffer; source.loop = sampleData.loop || false; 
+            const gainNode = audioContext.createGain(); 
+            source.connect(gainNode); gainNode.connect(masterFilterNode || audioContext.destination); 
+            
+            const now = audioContext.currentTime; gainNode.gain.setValueAtTime(0, now); gainNode.gain.linearRampToValueAtTime(1, now + (sampleData.fadeIn ? 0.05 : 0.005));
+            let startOffset = 0; if (sampleData.loop && sampleData.randomStart && buffer.duration > 1.0) startOffset = Math.random() * (buffer.duration - 0.1); 
+            source.start(0, startOffset); 
+            
+            playingNodes[id] = { source: source, gain: gainNode, startTime: now, bufferDuration: buffer.duration }; 
+            
+            const pad = document.getElementById(`pad-${id}`);
+            pad.classList.remove('purifying'); pad.classList.add('active'); 
+            
+            source.onended = () => { if (!sampleData.loop) { pad.classList.remove('active'); delete playingNodes[id]; } }; 
+            return true; 
+        }
+
+        function stopSample(id, forceStop = false) { 
+            const node = playingNodes[id]; if (!node) return; 
+            const pad = document.getElementById(`pad-${id}`); 
+            const sampleData = SYSTEM_DATA.sets[currentSetKey].samples.find(s => s.id == id);
+            
+            if (!forceStop && isHoldMode && sampleData.loop) return; 
+            if (!forceStop && sampleData.mode !== 'gate' && !sampleData.loop) {
+                pad.classList.remove('active'); return; 
+            }
+
+            // Release
+            pad.classList.remove('active');
+            const now = audioContext.currentTime;
+            let releaseTime = 0.3;
+            // Purify Logic (Visual)
+            if (pad.classList.contains('purifying') || (now - node.startTime > 0.4)) {
+                releaseTime = 1.0; 
+                pad.style.transition = `filter ${releaseTime}s ease-out`;
+            }
+            pad.classList.remove('purifying'); clearTimeout(pad.dataset.purifyTimer);
+
+            try {
+                node.gain.gain.cancelScheduledValues(now); 
+                node.gain.gain.setValueAtTime(node.gain.gain.value, now); 
+                node.gain.gain.exponentialRampToValueAtTime(0.001, now + releaseTime); 
+                node.source.stop(now + releaseTime); 
+            } catch(e) {}
+            delete playingNodes[id]; 
+        }
+
+        function stopAllSounds(immediate = false) { 
+            Object.keys(playingNodes).forEach(id => { 
+                if (immediate) { try { playingNodes[id].source.stop(0); } catch(e){} delete playingNodes[id]; } 
+                else { stopSample(id, true); } 
+            }); 
+            document.querySelectorAll('.pad').forEach(p => p.classList.remove('active', 'purifying'));
+        }
+
+        function attachEvents(pad) { 
+            const id = pad.dataset.id;
+            const start = (e) => { 
+                e.preventDefault();
+                triggerSample(id); 
+                pad.dataset.purifyTimer = setTimeout(() => { if (pad.classList.contains('active')) pad.classList.add('purifying'); }, 400); 
+            }; 
+            const end = (e) => { e.preventDefault(); stopSample(id); }; 
+            pad.addEventListener('mousedown', start); pad.addEventListener('touchstart', start, {passive:false});
+            pad.addEventListener('mouseup', end); pad.addEventListener('mouseleave', end);
+            pad.addEventListener('touchend', end); pad.addEventListener('touchcancel', end);
+        }
+
+        // --- CONTROLS ---
+        window.toggleHoldMode = function() { 
+            isHoldMode = !isHoldMode; 
+            const active = isHoldMode ? 'active' : '';
+            const b1 = document.getElementById('hold-btn-pc'); if(b1) isHoldMode ? b1.classList.add('active') : b1.classList.remove('active');
+            const b2 = document.getElementById('hold-btn-mobile'); if(b2) isHoldMode ? b2.classList.add('active') : b2.classList.remove('active');
+            if (!isHoldMode) stopAllSounds(false); 
+        };
+
+        window.toggleFxMode = function() { 
+            isFxMode = !isFxMode; 
+            const els = ['fx-btn-pc', 'fx-pad-pc', 'pc-fx-cursor', 'fx-btn-mobile', 'mobile-header', 'mobile-fx-cursor'];
+            els.forEach(id => {
+                const el = document.getElementById(id);
+                if(el) isFxMode ? el.classList.add('active') : el.classList.remove('active');
+                if(id === 'mobile-header' && isFxMode) el.classList.add('active-fx');
+                if(id === 'mobile-header' && !isFxMode) el.classList.remove('active-fx');
+            });
+        };
+
+        // Keyboard
+        const keyMap = ['1','2','3','4', 'q','w','e','r', 'a','s','d','f', 'z','x','c','v'];
+        window.addEventListener('keydown', e => {
+            if (e.repeat || e.metaKey || e.ctrlKey) return;
+            const k = e.key.toLowerCase();
+            if (k === 'h') toggleHoldMode();
+            if (k === 'enter') toggleFxMode();
+            const idx = keyMap.indexOf(k);
+            if (idx >= 0) {
+                const pad = document.getElementById(`pad-${idx}`);
+                if (pad) { pad.dispatchEvent(new Event('mousedown')); pressedKeys.add(k); }
+            }
+        });
+        window.addEventListener('keyup', e => {
+            const k = e.key.toLowerCase();
+            const idx = keyMap.indexOf(k);
+            if (idx >= 0) {
+                const pad = document.getElementById(`pad-${idx}`);
+                if (pad) { pad.dispatchEvent(new Event('mouseup')); pressedKeys.delete(k); }
+            }
+        });
+
+        // FX Touch Logic
+        function setupFx(zoneId, cursorId) {
+            const zone = document.getElementById(zoneId);
+            const cursor = document.getElementById(cursorId);
+            if(!zone) return;
+            const move = (cx, cy) => {
+                if(!isFxMode) return;
+                const rect = zone.getBoundingClientRect();
+                let x = (cx - rect.left) / rect.width; let y = (cy - rect.top) / rect.height;
+                x = Math.max(0, Math.min(1, x)); y = Math.max(0, Math.min(1, y));
+                cursor.style.left = x*100 + '%'; cursor.style.top = y*100 + '%';
+                updateFxParams(x, y); 
+            };
+            zone.addEventListener('mousemove', e => { if(e.buttons>0) move(e.clientX, e.clientY); });
+            zone.addEventListener('touchmove', e => { 
+                e.preventDefault(); 
+                if(e.touches[0]) move(e.touches[0].clientX, e.touches[0].clientY);
+            }, {passive:false});
+        }
+        setupFx('mobile-header', 'mobile-fx-cursor');
+        setupFx('fx-pad-pc', 'pc-fx-cursor');
+
+        function updateFxParams(x, y) {
+            if (!masterFilterNode) return;
+            const now = audioContext.currentTime;
+            const freq = 100 * Math.pow(20000/100, 1.0 - y); 
+            masterFilterNode.frequency.setTargetAtTime(freq, now, 0.1);
+            const wet = x;
+            masterReverbGain.gain.setTargetAtTime(wet * 3.0, now, 0.1);
+            masterDryGain.gain.setTargetAtTime(1.0 - (wet * 0.4), now, 0.1);
+        }
+    </script>
+</body>
+</html>
