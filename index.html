@@ -23,7 +23,17 @@
             -webkit-user-select: none; user-select: none; -webkit-touch-callout: none; touch-action: none; 
         }
 
-        /* --- MOBILE LAYOUT --- */
+        /* LOGIN OVERLAY */
+        #login-overlay {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: #000; z-index: 1000;
+            display: flex; flex-direction: column; align-items: center; justify-content: center;
+        }
+        .btn-login {
+            background: #fff; color: #333; border: none; padding: 15px 30px; font-size: 1rem; border-radius: 30px;
+            font-weight: bold; cursor: pointer; display: flex; align-items: center; gap: 10px;
+        }
+
+        /* MOBILE LAYOUT */
         #mobile-header { 
             display: flex; flex-direction: column; align-items: center; justify-content: center; 
             height: 22vh; width: 100%; z-index: 50; position: relative;
@@ -47,7 +57,7 @@
 
         #left-col, #right-col { display: none; }
 
-        /* --- PC LAYOUT --- */
+        /* PC LAYOUT */
         @media (min-width: 800px) {
             body { flex-direction: row; justify-content: space-between; padding: 0 40px; box-sizing: border-box; }
             #mobile-header, #mobile-footer { display: none !important; }
@@ -60,7 +70,7 @@
             #pc-controls-container { display: flex; gap: 15px; margin-top: 10px; width: 240px; justify-content: space-between; }
         }
 
-        /* --- COMPONENTS --- */
+        /* COMPONENTS */
         #place-name { margin: 0; font-size: 1.2rem; letter-spacing: 0.15em; font-weight: 300; pointer-events: none; }
         #recorder-name { margin: 5px 0 0 0; font-size: 0.75rem; opacity: 0.6; pointer-events: none; }
 
@@ -86,7 +96,7 @@
         #sampler-wrapper { width: 85vmin; height: 85vmin; max-width: 500px; max-height: 500px; position: relative; opacity: 0; transition: opacity 1s; }
         #sampler-container { display: grid; grid-template-columns: repeat(4, 1fr); grid-template-rows: repeat(4, 1fr); gap: 1px; width: 100%; height: 100%; }
 
-        /* PAD VISUALS */
+        /* PAD VISUALS (V3 Restored) */
         .pad { 
             position: relative; background-color: #222; background-size: 400% 400%; background-repeat: no-repeat; cursor: pointer; 
             -webkit-tap-highlight-color: transparent; 
@@ -110,7 +120,7 @@
         .control-btn.active { background: var(--text-color); color: var(--bg-color); opacity: 1; box-shadow: 0 0 10px rgba(255,255,255,0.3); }
         #fx-btn-pc.active, #fx-btn-mobile.active { background: var(--fx-active-color); border-color: var(--fx-active-color); color: #000; box-shadow: 0 0 15px var(--fx-active-color); }
 
-        /* MENUS */
+        /* MENUS (V3 Restored & Upgraded) */
         .menu-area-pc { margin-top: 20px; width: 100%; }
         #mobile-menu-wrapper { width: 100%; display: flex; flex-direction: column; align-items: center; margin-bottom: 15px; }
         #mobile-cat-menu { display: flex; gap: 10px; margin-bottom: 10px; flex-wrap: wrap; justify-content: center; }
@@ -127,18 +137,24 @@
     </style>
 </head>
 <body>
-    <div id="loading-indicator">SYSTEM BOOT...</div>
+    <div id="login-overlay">
+        <h1 style="letter-spacing: 0.2em; font-weight: 100; margin-bottom: 30px;">SOLOSOLA V4</h1>
+        <button id="btn-login" class="btn-login"><span style="color:#4285F4; font-weight:bold;">G</span> Login with Google</button>
+        <div id="login-status" style="margin-top: 20px; font-size: 0.8rem; opacity: 0.6;">Waiting for login...</div>
+    </div>
+
+    <div id="loading-indicator" style="display:none;">SYSTEM BOOT...</div>
 
     <div id="mobile-header">
         <h1 id="place-name">SOLOSOLA</h1>
-        <p id="recorder-name">Soundscape Media</p>
+        <p id="recorder-name">Cloud Media</p>
         <div id="mobile-fx-cursor" class="fx-cursor"></div>
     </div>
 
     <div id="left-col">
         <div id="pc-info-area">
             <h1 id="place-name-pc">SOLOSOLA</h1>
-            <p id="recorder-name-pc">Soundscape Media</p>
+            <p id="recorder-name-pc">Cloud Media</p>
         </div>
         <div class="menu-area-pc">
             <div id="pc-cat-menu" style="display:flex; gap:15px; flex-wrap:wrap; margin-bottom:10px;"></div>
@@ -173,381 +189,391 @@
         </div>
     </div>
 
-    <script>
-    // --- CONFIG ---
-    const DATA_URL = "./data.json"; 
-    let SYSTEM_DATA = {}, currentCategory = null, currentSetKey = null, audioContext;
-    const audioBuffers = new Array(16), playingNodes = {}, pressedKeys = new Set();
-    let isHoldMode = false, isFxMode = false;
-    let masterFilterNode, masterReverbNode, masterReverbGain, masterDryGain, masterCompressor;
-    
-    const keyMap = ['1','2','3','4', 'q','w','e','r', 'a','s','d','f', 'z','x','c','v'];
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
+        import { getAuth, signInWithPopup, GoogleAuthProvider, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
+        import { getFirestore, doc, getDoc } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
 
-    window.addEventListener('contextmenu', e => e.preventDefault(), { passive: false });
-    window.addEventListener('load', loadSystemData);
-    
-    function initAudioContext() { 
-        if (audioContext) return; 
-        try { audioContext = new (window.AudioContext || window.webkitAudioContext)(); setupMasterFX(); } 
-        catch (e) { console.error("Audio API Error"); } 
-    }
-    
-    function checkAudioContext() {
-        if (audioContext && audioContext.state === 'suspended') audioContext.resume();
-    }
-    document.addEventListener('touchstart', checkAudioContext);
-    document.addEventListener('mousedown', checkAudioContext);
-
-    function setupMasterFX() { 
-        masterFilterNode = audioContext.createBiquadFilter(); 
-        masterFilterNode.type = 'lowpass'; masterFilterNode.frequency.value = 20000; masterFilterNode.Q.value = 1; 
-        masterReverbNode = audioContext.createConvolver(); masterReverbNode.buffer = createReverbBuffer(2.0); 
-        masterDryGain = audioContext.createGain(); masterDryGain.gain.value = 1.0; 
-        masterReverbGain = audioContext.createGain(); masterReverbGain.gain.value = 0.0; 
-        masterCompressor = audioContext.createDynamicsCompressor();
-        masterCompressor.threshold.value = -10; masterCompressor.knee.value = 30; masterCompressor.ratio.value = 12; masterCompressor.attack.value = 0.003; masterCompressor.release.value = 0.25;
-
-        masterFilterNode.connect(masterDryGain); masterFilterNode.connect(masterReverbNode); 
-        masterReverbNode.connect(masterReverbGain); 
-        masterDryGain.connect(masterCompressor); masterReverbGain.connect(masterCompressor); 
-        masterCompressor.connect(audioContext.destination); 
-    }
-
-    function createReverbBuffer(duration) { 
-        const sampleRate = audioContext.sampleRate; const length = sampleRate * duration; 
-        const impulse = audioContext.createBuffer(2, length, sampleRate); 
-        const left = impulse.getChannelData(0); const right = impulse.getChannelData(1); 
-        for (let i = 0; i < length; i++) { 
-            const decay = Math.pow(1 - i / length, 2.0); 
-            left[i] = (Math.random() * 2 - 1) * decay; right[i] = (Math.random() * 2 - 1) * decay; 
-        } return impulse; 
-    }
-
-    async function loadSystemData() { 
-        try { 
-            const response = await fetch(DATA_URL); 
-            SYSTEM_DATA = await response.json(); 
-            if (SYSTEM_DATA.categories) selectCategory(SYSTEM_DATA.categories[0].id); 
-            document.getElementById('loading-indicator').style.display = 'none';
-            document.getElementById('sampler-wrapper').style.opacity = 1;
-        } catch (error) { console.error(error); } 
-    }
-
-    // --- SOUND LOGIC ---
-    function triggerSample(id) { 
-        checkAudioContext();
-        if (!audioContext) initAudioContext();
-
-        const sampleData = SYSTEM_DATA.sets[currentSetKey].samples[id]; 
-        const buffer = audioBuffers[parseInt(id)]; 
-        if (!buffer) return false; 
-
-        if (playingNodes[id]) {
-            if (isHoldMode) {
-                stopSample(id, true); return false;
-            } else {
-                stopSample(id, true); 
-            }
-        }
-
-        const source = audioContext.createBufferSource(); 
-        source.buffer = buffer; 
-        source.loop = sampleData.loop || false; 
-
-        const gainNode = audioContext.createGain(); 
-        source.connect(gainNode); 
-        if (masterFilterNode) gainNode.connect(masterFilterNode); 
-        else gainNode.connect(audioContext.destination); 
-
-        const now = audioContext.currentTime; 
-        gainNode.gain.setValueAtTime(0, now); 
-        const fadeDuration = sampleData.fadeIn ? 0.05 : 0.005; 
-        gainNode.gain.linearRampToValueAtTime(1, now + fadeDuration); 
-
-        let startOffset = 0; 
-        if (sampleData.loop && sampleData.randomStart && buffer.duration > 1.0) startOffset = Math.random() * 0.5; 
-        source.start(0, startOffset); 
-        
-        playingNodes[id] = { source: source, gain: gainNode, startTime: now, bufferDuration: buffer.duration }; 
-
-        const pad = document.getElementById(`pad-${id}`);
-        pad.classList.remove('purifying'); 
-        pad.style.transition = ""; 
-        void pad.offsetWidth; 
-        pad.classList.add('active'); 
-
-        source.onended = () => { 
-            if (!sampleData.loop) { 
-                pad.classList.remove('active'); 
-                pad.classList.remove('purifying');
-                pad.style.transition = ""; 
-                if (playingNodes[id] && playingNodes[id].source === source) delete playingNodes[id]; 
-            } 
-        }; 
-        return true; 
-    }
-
-    function stopSample(id, forceStop = false) { 
-        const node = playingNodes[id]; 
-        if (!node) return; 
-        
-        const pad = document.getElementById(`pad-${id}`); 
-        const sampleData = SYSTEM_DATA.sets[currentSetKey].samples[id];
-        const now = audioContext.currentTime;
-
-        // HOLD Check
-        if (!forceStop && isHoldMode && sampleData.loop) { return; } 
-
-        // OneShot Check (Gateじゃないなら、音は止めない。見た目だけフェード)
-        if (!forceStop && sampleData.mode !== 'gate' && !sampleData.loop) {
-            pad.classList.remove('active');
-            const played = now - node.startTime;
-            const remaining = Math.max(0, node.bufferDuration - played);
-            pad.style.transition = `filter ${remaining}s linear`;
-            return; 
-        }
-
-        // --- 停止処理 (Gate, Loop停止, ForceStop) ---
-        pad.classList.remove('active');
-        
-        // ★修正: リリース計算 (Gateであっても長押し/浄化中は長くする)
-        let releaseTime = 0.3; // Default short release
-        const pressDuration = now - node.startTime;
-        const isPurifying = pad.classList.contains('purifying') || pressDuration > 0.4;
-        
-        if (isPurifying) {
-            releaseTime = 0.5 + Math.pow(pressDuration * 0.8, 1.2); 
-            if (releaseTime > 20) releaseTime = 20; 
-        }
-        
-        try {
-            node.gain.gain.cancelScheduledValues(now); 
-            node.gain.gain.setValueAtTime(node.gain.gain.value, now); 
-            node.gain.gain.exponentialRampToValueAtTime(0.001, now + releaseTime); 
-            node.source.stop(now + releaseTime); 
-        } catch(e) {}
-        
-        // 視覚リセット
-        pad.classList.remove('purifying'); 
-        
-        // ★修正: リリース時間に合わせて明るく戻す (解放)
-        if (isPurifying) {
-             pad.style.transition = `filter ${releaseTime}s ease-out, box-shadow ${releaseTime}s ease-out`;
-        } else {
-             pad.style.transition = ""; 
-        }
-
-        clearTimeout(pad.dataset.purifyTimer); 
-        delete playingNodes[id]; 
-    }
-
-    function stopAllSounds(immediate = false) { 
-        Object.keys(playingNodes).forEach(id => { 
-            if (immediate) { 
-                try { playingNodes[id].source.stop(0); } catch(e){} 
-                delete playingNodes[id]; 
-                const pad = document.getElementById(`pad-${id}`);
-                pad.className = 'pad'; pad.style.transition = "";
-            } else { 
-                stopSample(id, true); 
-            } 
-        }); 
-    }
-
-    function attachEvents(pad) { 
-        let isTouch = false; 
-        const id = pad.dataset.id;
-        
-        const start = (e) => { 
-            if (e.type === 'touchstart') isTouch = true;
-            if (e.type === 'mousedown' && isTouch) return;
-            triggerSample(id); 
-            
-            const sampleData = SYSTEM_DATA.sets[currentSetKey].samples[id];
-            // Gate Modeなら浄化タイマー起動
-            if (sampleData.mode === 'gate') {
-                const timer = setTimeout(() => {
-                    if (pad.classList.contains('active') || isHoldMode) {
-                        pad.classList.add('purifying');
-                    }
-                }, 400); 
-                pad.dataset.purifyTimer = timer;
-            }
-        }; 
-
-        const end = (e) => { 
-            if (e.type === 'mouseup' && isTouch) return;
-            stopSample(id); 
-        }; 
-
-        pad.addEventListener('mousedown', start); pad.addEventListener('touchstart', start, {passive:false});
-        pad.addEventListener('mouseup', end); pad.addEventListener('mouseleave', end);
-        pad.addEventListener('touchend', end); pad.addEventListener('touchcancel', end);
-    }
-    
-    // UI Helpers & Menu
-    function renderPads(setData) { 
-        const container = document.getElementById('sampler-container'); container.innerHTML = ''; 
-        for (let i = 0; i < 16; i++) { 
-            const pad = document.createElement('div'); pad.className = 'pad'; pad.id = `pad-${i}`; 
-            pad.dataset.id = i; pad.dataset.key = keyMap[i]; 
-            const col = i % 4; const row = Math.floor(i / 4); 
-            pad.style.backgroundImage = `url('${setData.image}')`; pad.style.backgroundPosition = `${col*(100/3)}% ${row*(100/3)}%`; 
-            const label = document.createElement('span'); label.className = 'pad-label'; label.textContent = setData.samples[i].label; 
-            pad.appendChild(label); attachEvents(pad); container.appendChild(pad); 
-        } 
-    }
-    
-    function selectCategory(catId) { 
-        currentCategory = catId; 
-        const catData = SYSTEM_DATA.categories.find(c => c.id === catId);
-        
-        const fill = (catEl, setEl) => {
-            if(!catEl) return;
-            catEl.innerHTML = ''; setEl.innerHTML = '';
-            SYSTEM_DATA.categories.forEach(cat => {
-                const el = document.createElement('div'); el.className = `category-item ${cat.id === currentCategory ? 'active' : ''}`;
-                el.textContent = cat.label; el.onclick = () => selectCategory(cat.id);
-                catEl.appendChild(el);
-            });
-            catData.sets.forEach(setId => {
-                const sData = SYSTEM_DATA.sets[setId]; if(!sData) return;
-                const el = document.createElement('div'); el.className = `menu-item ${setId === currentSetKey ? 'active' : ''}`;
-                el.textContent = sData.name.split('・')[0] || sData.name; el.onclick = () => changeSamplerSet(setId);
-                setEl.appendChild(el);
-            });
+        const firebaseConfig = {
+            apiKey: "AIzaSyC0yzzu9f6PM0zfnr463jRdsRrXpkqP-YA",
+            authDomain: "solosola-v4.firebaseapp.com",
+            projectId: "solosola-v4",
+            storageBucket: "solosola-v4.firebasestorage.app",
+            messagingSenderId: "937332002715",
+            appId: "1:937332002715:web:17d4933814874b2d7adb3e"
         };
-        
-        fill(document.getElementById('pc-cat-menu'), document.getElementById('pc-set-menu'));
-        fill(document.getElementById('mobile-cat-menu'), document.getElementById('mobile-set-menu'));
-        
-        if (catData.sets.length > 0 && !catData.sets.includes(currentSetKey)) changeSamplerSet(catData.sets[0]); 
-    }
 
-    async function changeSamplerSet(setKey) { 
-        if (!SYSTEM_DATA.sets[setKey]) return; 
-        if (!audioContext) initAudioContext(); 
-        stopAllSounds(true); 
-        currentSetKey = setKey; 
-        const newData = SYSTEM_DATA.sets[setKey]; 
-        
-        const p1 = document.getElementById('place-name'); if(p1) p1.textContent = newData.name;
-        const p2 = document.getElementById('place-name-pc'); if(p2) p2.textContent = newData.name;
-        const r1 = document.getElementById('recorder-name'); if(r1) r1.textContent = newData.recorder;
-        const r2 = document.getElementById('recorder-name-pc'); if(r2) r2.textContent = newData.recorder;
+        const app = initializeApp(firebaseConfig);
+        const auth = getAuth(app);
+        const db = getFirestore(app);
 
-        renderPads(newData); 
-        selectCategory(currentCategory); 
-        await preloadAllSamples(); 
-    }
-    
-    async function preloadAllSamples() {
-        const currentSetData = SYSTEM_DATA.sets[currentSetKey];
-        if (!currentSetData) return;
-        const loadPromises = currentSetData.samples.map(async (sample) => {
-            if (!sample.url) return;
-            try {
-                const response = await fetch(DATA_URL.replace('data.json','') + sample.url);
-                const buf = await response.arrayBuffer();
-                audioBuffers[sample.id] = await audioContext.decodeAudioData(buf);
-            } catch (e) {}
+        // --- GLOBAL VARIABLES ---
+        let SYSTEM_DATA = { sets: {}, categories: {} };
+        let currentCategory = "ALL";
+        let currentSetKey = null;
+        let audioContext;
+        const audioBuffers = new Array(16);
+        const playingNodes = {};
+        const pressedKeys = new Set();
+        let isHoldMode = false, isFxMode = false;
+        let masterFilterNode, masterReverbNode, masterReverbGain, masterDryGain, masterCompressor;
+        const keyMap = ['1','2','3','4', 'q','w','e','r', 'a','s','d','f', 'z','x','c','v'];
+
+        window.addEventListener('contextmenu', e => e.preventDefault(), { passive: false });
+
+        // --- AUTH & LOAD LOGIC ---
+        const loginOverlay = document.getElementById('login-overlay');
+        const loginBtn = document.getElementById('btn-login');
+        const loginStatus = document.getElementById('login-status');
+        const loadingInd = document.getElementById('loading-indicator');
+
+        loginBtn.addEventListener('click', () => {
+            signInWithPopup(auth, new GoogleAuthProvider()).catch(err => { loginStatus.innerText = "Error: " + err.message; });
         });
-        await Promise.all(loadPromises);
-    }
 
-    // CONTROLS
-    function toggleHoldMode() { 
-        isHoldMode = !isHoldMode; 
-        const updateBtn = (id) => { const b = document.getElementById(id); if(b) isHoldMode ? b.classList.add('active') : b.classList.remove('active'); };
-        updateBtn('hold-btn-pc'); updateBtn('hold-btn-mobile');
-        if (!isHoldMode) stopAllSounds(false); 
-    }
+        onAuthStateChanged(auth, async (user) => {
+            if (user) {
+                loginStatus.innerText = "Connected! Loading data...";
+                loadingInd.style.display = 'block';
+                loginOverlay.style.display = 'none';
+                await loadCloudData(user.uid);
+            } else {
+                loginOverlay.style.display = 'flex';
+            }
+        });
 
-    function toggleFxMode() { 
-        isFxMode = !isFxMode; 
-        const update = (btnId, zoneId, cursorId) => {
-            const btn = document.getElementById(btnId); const zone = document.getElementById(zoneId); const cursor = document.getElementById(cursorId);
-            if(btn && zone) {
-                if(isFxMode) {
-                    btn.classList.add('active'); zone.classList.add('active');
-                    if(zoneId === 'mobile-header') zone.classList.add('active-fx');
+        async function loadCloudData(uid) {
+            try {
+                const docSnap = await getDoc(doc(db, "users", uid));
+                if (docSnap.exists() && docSnap.data().sets) {
+                    const data = docSnap.data();
+                    SYSTEM_DATA.sets = data.sets;
+                    
+                    // タグからカテゴリーを自動生成するロジック（V3とV4の融合）
+                    let cats = { "ALL": [] };
+                    Object.keys(data.sets).forEach(key => {
+                        const tag = data.sets[key].tag || "Others";
+                        if (!cats[tag]) cats[tag] = [];
+                        cats[tag].push(key);
+                        cats["ALL"].push(key);
+                    });
+                    SYSTEM_DATA.categories = cats;
+
+                    // URLパラメータチェック
+                    const targetSet = new URLSearchParams(window.location.search).get('set');
+                    if (targetSet && data.sets[targetSet]) {
+                        currentCategory = data.sets[targetSet].tag || "Others";
+                        selectCategory(currentCategory);
+                        changeSamplerSet(targetSet);
+                    } else {
+                        selectCategory("ALL");
+                    }
                 } else {
-                    btn.classList.remove('active'); zone.classList.remove('active');
-                    if(zoneId === 'mobile-header') zone.classList.remove('active-fx');
-                    if(cursor) cursor.classList.remove('active');
+                    alert("No Sets found in cloud. Create one in Studio first.");
                 }
-            }
-        };
-        update('fx-btn-pc', 'fx-pad-pc', 'pc-fx-cursor');
-        update('fx-btn-mobile', 'mobile-header', 'mobile-fx-cursor');
-    }
-    
-    function setupFx(zoneId, cursorId) {
-        const zone = document.getElementById(zoneId);
-        const cursor = document.getElementById(cursorId);
-        if(!zone) return;
+            } catch (error) { console.error(error); alert("Failed to load cloud data."); } 
+            finally { loadingInd.style.display = 'none'; }
+        }
 
-        const move = (cx, cy) => {
-            if(!isFxMode) return;
-            const rect = zone.getBoundingClientRect();
-            let x = (cx - rect.left) / rect.width; let y = (cy - rect.top) / rect.height;
-            x = Math.max(0, Math.min(1, x)); y = Math.max(0, Math.min(1, y));
+        // --- UI MENUS ---
+        function selectCategory(catId) { 
+            currentCategory = catId; 
+            const catSetList = SYSTEM_DATA.categories[catId] || [];
             
-            cursor.style.left = x*100 + '%'; cursor.style.top = y*100 + '%';
-            cursor.classList.add('active');
-            updateFxParams(x, y); 
+            const fill = (catEl, setEl) => {
+                if(!catEl) return;
+                catEl.innerHTML = ''; setEl.innerHTML = '';
+                
+                Object.keys(SYSTEM_DATA.categories).forEach(cName => {
+                    const el = document.createElement('div'); 
+                    el.className = `category-item ${cName === currentCategory ? 'active' : ''}`;
+                    el.textContent = cName; 
+                    el.onclick = () => selectCategory(cName);
+                    catEl.appendChild(el);
+                });
+
+                catSetList.forEach(setId => {
+                    const sData = SYSTEM_DATA.sets[setId]; if(!sData) return;
+                    const el = document.createElement('div'); 
+                    el.className = `menu-item ${setId === currentSetKey ? 'active' : ''}`;
+                    el.textContent = sData.name; 
+                    el.onclick = () => changeSamplerSet(setId);
+                    setEl.appendChild(el);
+                });
+            };
+            
+            fill(document.getElementById('pc-cat-menu'), document.getElementById('pc-set-menu'));
+            fill(document.getElementById('mobile-cat-menu'), document.getElementById('mobile-set-menu'));
+            
+            if (catSetList.length > 0 && !catSetList.includes(currentSetKey)) changeSamplerSet(catSetList[0]); 
+        }
+
+        // Expose to window
+        window.changeSamplerSet = async function(setKey) { 
+            if (!SYSTEM_DATA.sets[setKey]) return; 
+            if (!audioContext) initAudioContext(); 
+            stopAllSounds(true); 
+            currentSetKey = setKey; 
+            const newData = SYSTEM_DATA.sets[setKey]; 
+            
+            const p1 = document.getElementById('place-name'); if(p1) p1.textContent = newData.name;
+            const p2 = document.getElementById('place-name-pc'); if(p2) p2.textContent = newData.name;
+            const r1 = document.getElementById('recorder-name'); if(r1) r1.textContent = newData.recorder;
+            const r2 = document.getElementById('recorder-name-pc'); if(r2) r2.textContent = newData.recorder;
+
+            const newUrl = window.location.protocol + "//" + window.location.host + window.location.pathname + '?set=' + setKey;
+            window.history.pushState({path:newUrl}, '', newUrl);
+
+            renderPads(newData); 
+            selectCategory(currentCategory); // Refresh active states
+            document.getElementById('sampler-wrapper').style.opacity = 0.5;
+            await preloadAllSamples(); 
+            document.getElementById('sampler-wrapper').style.opacity = 1;
         };
-        
-        zone.addEventListener('mousemove', e => { if(e.buttons>0) move(e.clientX, e.clientY); });
-        zone.addEventListener('touchmove', e => { 
-            e.preventDefault(); 
-            for (let i=0; i < e.touches.length; i++) {
-                const t = e.touches[i];
-                const rect = zone.getBoundingClientRect();
-                if (t.clientX >= rect.left && t.clientX <= rect.right && 
-                    t.clientY >= rect.top && t.clientY <= rect.bottom) {
-                    move(t.clientX, t.clientY);
-                    break; 
+
+        // --- PADS & AUDIO (V3 logic restored) ---
+        function renderPads(setData) { 
+            const container = document.getElementById('sampler-container'); container.innerHTML = ''; 
+            for (let i = 0; i < 16; i++) { 
+                const sample = setData.samples.find(s => s.id === i) || { id: i, label: "" };
+                const pad = document.createElement('div'); pad.className = 'pad'; pad.id = `pad-${i}`; 
+                pad.dataset.id = i; pad.dataset.key = keyMap[i]; 
+                
+                // V3 Image Slicing Restored
+                if(setData.image) {
+                    const col = i % 4; const row = Math.floor(i / 4); 
+                    pad.style.backgroundImage = `url('${setData.image}')`; 
+                    pad.style.backgroundPosition = `${col*(100/3)}% ${row*(100/3)}%`; 
                 }
+                
+                const label = document.createElement('span'); label.className = 'pad-label'; label.textContent = sample.label; 
+                pad.appendChild(label); attachEvents(pad); container.appendChild(pad); 
+            } 
+        }
+
+        async function preloadAllSamples() {
+            const currentSetData = SYSTEM_DATA.sets[currentSetKey];
+            if (!currentSetData) return;
+            const loadPromises = currentSetData.samples.map(async (sample) => {
+                if (!sample || !sample.url) return;
+                try {
+                    const response = await fetch(sample.url);
+                    const buf = await response.arrayBuffer();
+                    audioBuffers[sample.id] = await audioContext.decodeAudioData(buf);
+                } catch (e) {}
+            });
+            await Promise.all(loadPromises);
+        }
+
+        function initAudioContext() { 
+            if (audioContext) return; 
+            try { audioContext = new (window.AudioContext || window.webkitAudioContext)(); setupMasterFX(); } 
+            catch (e) {} 
+        }
+        
+        function checkAudioContext() { if (audioContext && audioContext.state === 'suspended') audioContext.resume(); }
+        document.addEventListener('touchstart', checkAudioContext); document.addEventListener('mousedown', checkAudioContext);
+
+        function setupMasterFX() { 
+            masterFilterNode = audioContext.createBiquadFilter(); 
+            masterFilterNode.type = 'lowpass'; masterFilterNode.frequency.value = 20000; masterFilterNode.Q.value = 1; 
+            masterReverbNode = audioContext.createConvolver(); masterReverbNode.buffer = createReverbBuffer(2.0); 
+            masterDryGain = audioContext.createGain(); masterDryGain.gain.value = 1.0; 
+            masterReverbGain = audioContext.createGain(); masterReverbGain.gain.value = 0.0; 
+            masterCompressor = audioContext.createDynamicsCompressor();
+            masterCompressor.threshold.value = -10; masterCompressor.knee.value = 30; masterCompressor.ratio.value = 12; masterCompressor.attack.value = 0.003; masterCompressor.release.value = 0.25;
+
+            masterFilterNode.connect(masterDryGain); masterFilterNode.connect(masterReverbNode); 
+            masterReverbNode.connect(masterReverbGain); 
+            masterDryGain.connect(masterCompressor); masterReverbGain.connect(masterCompressor); 
+            masterCompressor.connect(audioContext.destination); 
+        }
+
+        function createReverbBuffer(duration) { 
+            const sampleRate = audioContext.sampleRate; const length = sampleRate * duration; 
+            const impulse = audioContext.createBuffer(2, length, sampleRate); 
+            for (let i = 0; i < length; i++) { 
+                const decay = Math.pow(1 - i / length, 2.0); 
+                impulse.getChannelData(0)[i] = (Math.random() * 2 - 1) * decay; 
+                impulse.getChannelData(1)[i] = (Math.random() * 2 - 1) * decay; 
+            } return impulse; 
+        }
+
+        function triggerSample(id) { 
+            checkAudioContext(); if (!audioContext) initAudioContext();
+            const sampleData = SYSTEM_DATA.sets[currentSetKey].samples.find(s => s.id == id); 
+            const buffer = audioBuffers[parseInt(id)]; 
+            if (!buffer || !sampleData) return false; 
+
+            if (playingNodes[id]) {
+                if (isHoldMode) { stopSample(id, true); return false; } 
+                else { stopSample(id, true); }
             }
-        }, {passive:false});
-    }
-    
-    setupFx('mobile-header', 'mobile-fx-cursor');
-    setupFx('fx-pad-pc', 'pc-fx-cursor');
 
-    function updateFxParams(x, y) {
-        if (!masterFilterNode) return;
-        const now = audioContext.currentTime;
-        // Y: Filter (Top Open)
-        const freq = 100 * Math.pow(20000/100, 1.0 - y); 
-        masterFilterNode.frequency.setTargetAtTime(freq, now, 0.1);
-        // X: Reverb (Right Wet)
-        const wet = x;
-        masterReverbGain.gain.setTargetAtTime(wet * 3.0, now, 0.1);
-        masterDryGain.gain.setTargetAtTime(1.0 - (wet * 0.4), now, 0.1);
-    }
+            const source = audioContext.createBufferSource(); source.buffer = buffer; source.loop = sampleData.loop || false; 
+            const gainNode = audioContext.createGain(); 
+            source.connect(gainNode); gainNode.connect(masterFilterNode || audioContext.destination); 
 
-    // Keyboard Input
-    window.addEventListener('keydown', e => {
-        if (e.metaKey||e.ctrlKey) return;
-        const k = e.key.toLowerCase();
-        if (k === 'h') { toggleHoldMode(); return; }
-        if (k === 'enter') { toggleFxMode(); return; }
-        const pad = document.querySelector(`.pad[data-key="${k}"]`);
-        if (pad && !pressedKeys.has(k)) {
-            pressedKeys.add(k);
-            pad.dispatchEvent(new Event('mousedown')); 
+            const now = audioContext.currentTime; gainNode.gain.setValueAtTime(0, now); 
+            gainNode.gain.linearRampToValueAtTime(1, now + (sampleData.fadeIn ? 0.05 : 0.005)); 
+
+            let startOffset = 0; if (sampleData.loop && sampleData.randomStart && buffer.duration > 1.0) startOffset = Math.random() * 0.5; 
+            source.start(0, startOffset); 
+            
+            playingNodes[id] = { source: source, gain: gainNode, startTime: now, bufferDuration: buffer.duration }; 
+
+            const pad = document.getElementById(`pad-${id}`);
+            pad.classList.remove('purifying'); pad.style.transition = ""; void pad.offsetWidth; 
+            pad.classList.add('active'); 
+
+            source.onended = () => { 
+                if (!sampleData.loop) { 
+                    pad.classList.remove('active'); pad.classList.remove('purifying'); pad.style.transition = ""; 
+                    if (playingNodes[id] && playingNodes[id].source === source) delete playingNodes[id]; 
+                } 
+            }; 
+            return true; 
         }
-    });
-    window.addEventListener('keyup', e => {
-        const k = e.key.toLowerCase();
-        const pad = document.querySelector(`.pad[data-key="${k}"]`);
-        if (pad) {
-            pressedKeys.delete(k);
-            pad.dispatchEvent(new Event('mouseup')); 
+
+        function stopSample(id, forceStop = false) { 
+            const node = playingNodes[id]; if (!node) return; 
+            const pad = document.getElementById(`pad-${id}`); 
+            const sampleData = SYSTEM_DATA.sets[currentSetKey].samples.find(s => s.id == id);
+            const now = audioContext.currentTime;
+
+            if (!forceStop && isHoldMode && sampleData.loop) return; 
+            if (!forceStop && sampleData.mode !== 'gate' && !sampleData.loop) {
+                pad.classList.remove('active');
+                const played = now - node.startTime;
+                pad.style.transition = `filter ${Math.max(0, node.bufferDuration - played)}s linear`;
+                return; 
+            }
+
+            pad.classList.remove('active');
+            let releaseTime = 0.3; 
+            const pressDuration = now - node.startTime;
+            const isPurifying = pad.classList.contains('purifying') || pressDuration > 0.4;
+            
+            // V3 Purifying Logic Restored
+            if (isPurifying) {
+                releaseTime = 0.5 + Math.pow(pressDuration * 0.8, 1.2); 
+                if (releaseTime > 20) releaseTime = 20; 
+            }
+            
+            try {
+                node.gain.gain.cancelScheduledValues(now); 
+                node.gain.gain.setValueAtTime(node.gain.gain.value, now); 
+                node.gain.gain.exponentialRampToValueAtTime(0.001, now + releaseTime); 
+                node.source.stop(now + releaseTime); 
+            } catch(e) {}
+            
+            pad.classList.remove('purifying'); 
+            if (isPurifying) pad.style.transition = `filter ${releaseTime}s ease-out, box-shadow ${releaseTime}s ease-out`;
+            else pad.style.transition = ""; 
+
+            clearTimeout(pad.dataset.purifyTimer); delete playingNodes[id]; 
         }
-    });
+
+        function stopAllSounds(immediate = false) { 
+            Object.keys(playingNodes).forEach(id => { 
+                if (immediate) { 
+                    try { playingNodes[id].source.stop(0); } catch(e){} delete playingNodes[id]; 
+                    const pad = document.getElementById(`pad-${id}`); pad.className = 'pad'; pad.style.transition = "";
+                } else { stopSample(id, true); } 
+            }); 
+        }
+
+        function attachEvents(pad) { 
+            let isTouch = false; const id = pad.dataset.id;
+            const start = (e) => { 
+                if (e.type === 'touchstart') isTouch = true;
+                if (e.type === 'mousedown' && isTouch) return;
+                triggerSample(id); 
+                const sampleData = SYSTEM_DATA.sets[currentSetKey].samples.find(s => s.id == id);
+                if (sampleData && sampleData.mode === 'gate') {
+                    pad.dataset.purifyTimer = setTimeout(() => {
+                        if (pad.classList.contains('active') || isHoldMode) pad.classList.add('purifying');
+                    }, 400); 
+                }
+            }; 
+            const end = (e) => { 
+                if (e.type === 'mouseup' && isTouch) return;
+                stopSample(id); 
+            }; 
+            pad.addEventListener('mousedown', start); pad.addEventListener('touchstart', start, {passive:false});
+            pad.addEventListener('mouseup', end); pad.addEventListener('mouseleave', end);
+            pad.addEventListener('touchend', end); pad.addEventListener('touchcancel', end);
+        }
+
+        // --- CONTROLS ---
+        window.toggleHoldMode = function() { 
+            isHoldMode = !isHoldMode; 
+            const b1 = document.getElementById('hold-btn-pc'); if(b1) isHoldMode ? b1.classList.add('active') : b1.classList.remove('active');
+            const b2 = document.getElementById('hold-btn-mobile'); if(b2) isHoldMode ? b2.classList.add('active') : b2.classList.remove('active');
+            if (!isHoldMode) stopAllSounds(false); 
+        };
+
+        window.toggleFxMode = function() { 
+            isFxMode = !isFxMode; 
+            const els = ['fx-btn-pc', 'fx-pad-pc', 'pc-fx-cursor', 'fx-btn-mobile', 'mobile-header', 'mobile-fx-cursor'];
+            els.forEach(id => {
+                const el = document.getElementById(id);
+                if(el) isFxMode ? el.classList.add('active') : el.classList.remove('active');
+                if(id === 'mobile-header' && isFxMode) el.classList.add('active-fx');
+                if(id === 'mobile-header' && !isFxMode) el.classList.remove('active-fx');
+            });
+        };
+
+        window.addEventListener('keydown', e => {
+            if (e.metaKey||e.ctrlKey) return;
+            const k = e.key.toLowerCase();
+            if (k === 'h') { toggleHoldMode(); return; }
+            if (k === 'enter') { toggleFxMode(); return; }
+            const pad = document.querySelector(`.pad[data-key="${k}"]`);
+            if (pad && !pressedKeys.has(k)) { pressedKeys.add(k); pad.dispatchEvent(new Event('mousedown')); }
+        });
+        window.addEventListener('keyup', e => {
+            const k = e.key.toLowerCase();
+            const pad = document.querySelector(`.pad[data-key="${k}"]`);
+            if (pad) { pressedKeys.delete(k); pad.dispatchEvent(new Event('mouseup')); }
+        });
+
+        // V3 Multi-touch FX Restored
+        function setupFx(zoneId, cursorId) {
+            const zone = document.getElementById(zoneId); const cursor = document.getElementById(cursorId);
+            if(!zone) return;
+
+            const move = (cx, cy) => {
+                if(!isFxMode) return;
+                const rect = zone.getBoundingClientRect();
+                let x = (cx - rect.left) / rect.width; let y = (cy - rect.top) / rect.height;
+                x = Math.max(0, Math.min(1, x)); y = Math.max(0, Math.min(1, y));
+                cursor.style.left = x*100 + '%'; cursor.style.top = y*100 + '%';
+                cursor.classList.add('active'); updateFxParams(x, y); 
+            };
+            
+            zone.addEventListener('mousemove', e => { if(e.buttons>0) move(e.clientX, e.clientY); });
+            zone.addEventListener('touchmove', e => { 
+                e.preventDefault(); 
+                for (let i=0; i < e.touches.length; i++) {
+                    const t = e.touches[i]; const rect = zone.getBoundingClientRect();
+                    if (t.clientX >= rect.left && t.clientX <= rect.right && t.clientY >= rect.top && t.clientY <= rect.bottom) {
+                        move(t.clientX, t.clientY); break; 
+                    }
+                }
+            }, {passive:false});
+        }
+        setupFx('mobile-header', 'mobile-fx-cursor'); setupFx('fx-pad-pc', 'pc-fx-cursor');
+
+        function updateFxParams(x, y) {
+            if (!masterFilterNode) return;
+            const now = audioContext.currentTime;
+            const freq = 100 * Math.pow(20000/100, 1.0 - y); 
+            masterFilterNode.frequency.setTargetAtTime(freq, now, 0.1);
+            const wet = x;
+            masterReverbGain.gain.setTargetAtTime(wet * 3.0, now, 0.1);
+            masterDryGain.gain.setTargetAtTime(1.0 - (wet * 0.4), now, 0.1);
+        }
     </script>
 </body>
 </html>
