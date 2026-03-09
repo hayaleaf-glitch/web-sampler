@@ -136,7 +136,7 @@
 <body>
     <div id="login-overlay">
         <h1 style="letter-spacing: 0.2em; font-weight: 100; margin-bottom: 30px;">SOLOSOLA V4</h1>
-        <button id="btn-login" class="btn-login">Login with Google</button>
+        <button id="btn-login" class="btn-login"><span style="color:#4285F4; font-weight:bold;">G</span> Login with Google</button>
         <div id="login-status" style="margin-top: 20px; font-size: 0.8rem; opacity: 0.6;">Waiting for login...</div>
     </div>
 
@@ -242,17 +242,27 @@
 
         async function loadCloudData(uid) {
             try {
+                // Phase 1ではとりあえずログインユーザー自身のデータを見に行く
                 const docRef = doc(db, "users", uid);
                 const docSnap = await getDoc(docRef);
 
                 if (docSnap.exists()) {
                     const data = docSnap.data();
-                    if(data.sets) {
+                    if(data.sets && Object.keys(data.sets).length > 0) {
                         SYSTEM_DATA.sets = data.sets;
                         setupMenus();
-                        // Load first set automatically
-                        const firstKey = Object.keys(data.sets)[0];
-                        if(firstKey) changeSamplerSet(firstKey);
+                        
+                        // 【新規追加】URLパラメータからのセット指定読み込みロジック
+                        const urlParams = new URLSearchParams(window.location.search);
+                        const targetSet = urlParams.get('set'); // 例: ?set=my-set-01
+
+                        if (targetSet && data.sets[targetSet]) {
+                            changeSamplerSet(targetSet);
+                        } else {
+                            // 指定がない、または存在しない場合は最初のセットを読み込む
+                            const firstKey = Object.keys(data.sets)[0];
+                            changeSamplerSet(firstKey);
+                        }
                     } else {
                         alert("No Sets found in cloud. Create one in Studio first.");
                     }
@@ -312,6 +322,10 @@
             const p2 = document.getElementById('place-name-pc'); if(p2) p2.textContent = newData.name;
             const r1 = document.getElementById('recorder-name'); if(r1) r1.textContent = newData.recorder;
             const r2 = document.getElementById('recorder-name-pc'); if(r2) r2.textContent = newData.recorder;
+
+            // URLバーを書き換える（リロードせずにパラメータだけ変更、シェアしやすくするため）
+            const newUrl = window.location.protocol + "//" + window.location.host + window.location.pathname + '?set=' + setKey;
+            window.history.pushState({path:newUrl}, '', newUrl);
 
             renderPads(newData);
             document.getElementById('sampler-wrapper').style.opacity = 0.5; // Dim while loading
