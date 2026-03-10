@@ -96,7 +96,7 @@
 
     <div id="sidebar">
         <div class="sidebar-header">
-            <h1>SOLOSOLA V4</h1>
+            <h1>SOLOSOLA STUDIO</h1>
             <div class="project-status">
                 <div id="status-dot" class="status-dot"></div>
                 <span id="status-text">Not Connected</span>
@@ -197,13 +197,11 @@
     </div>
 
     <script type="module">
-        // Import Firebase SDKs
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
         import { getAuth, signInWithPopup, GoogleAuthProvider, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
-        import { getFirestore, doc, getDoc, setDoc } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+        import { getFirestore, doc, getDoc, setDoc, collection, query, where, getDocs, writeBatch, deleteDoc } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
         import { getStorage, ref, uploadBytes, getDownloadURL } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-storage.js";
 
-        // Your web app's Firebase configuration
         const firebaseConfig = {
             apiKey: "AIzaSyC0yzzu9f6PM0zfnr463jRdsRrXpkqP-YA",
             authDomain: "solosola-v4.firebaseapp.com",
@@ -213,7 +211,6 @@
             appId: "1:937332002715:web:17d4933814874b2d7adb3e"
         };
 
-        // Initialize Firebase
         const app = initializeApp(firebaseConfig);
         const auth = getAuth(app);
         const db = getFirestore(app);
@@ -221,7 +218,7 @@
 
         // --- GLOBAL STATE ---
         let currentUser = null;
-        let projectData = { sets: {} }; // Main Data Structure (JSON)
+        let projectData = { sets: {} }; 
         let currentSetKey = null;
         let currentPadId = null;
         let audioCtx = new (window.AudioContext || window.webkitAudioContext)();
@@ -233,19 +230,12 @@
         const statusText = document.getElementById('status-text');
         const statusDot = document.getElementById('status-dot');
 
-        // Login Handler
         btnLogin.addEventListener('click', () => {
-            const provider = new GoogleAuthProvider();
-            signInWithPopup(auth, provider).catch(error => {
-                console.error("Login Failed:", error);
-                alert("Login Failed: " + error.message);
-            });
+            signInWithPopup(auth, new GoogleAuthProvider()).catch(error => { alert("Login Failed: " + error.message); });
         });
 
-        // Auth State Monitor
         onAuthStateChanged(auth, async (user) => {
             if (user) {
-                // Logged In
                 currentUser = user;
                 btnLogin.style.display = 'none';
                 userInfo.style.display = 'block';
@@ -254,41 +244,33 @@
                 statusDot.classList.add('active');
                 document.getElementById('btn-save-all').disabled = false;
                 
-                // Load User Data from Firestore immediately
                 await loadUserData();
             } else {
-                // Logged Out
                 currentUser = null;
                 btnLogin.style.display = 'flex';
                 userInfo.style.display = 'none';
                 statusText.innerText = "Not Connected";
                 statusDot.classList.remove('active');
-                document.getElementById('set-list').innerHTML = ''; // Clear list
+                document.getElementById('set-list').innerHTML = ''; 
             }
         });
 
-        // --- CLOUD DATA LOGIC (Firestore) ---
+        // --- CLOUD DATA LOGIC (Firestore フラット化対応) ---
 
-        // Load Data: Read "users/{uid}" document
+        // 自分が作成したセット(ownerId一致)だけを取得する
         async function loadUserData() {
             if (!currentUser) return;
             try {
-                // We use a single document "main_data" inside the user's collection for simplicity in Phase 1
-                const docRef = doc(db, "users", currentUser.uid);
-                const docSnap = await getDoc(docRef);
+                const q = query(collection(db, "sets"), where("ownerId", "==", currentUser.uid));
+                const querySnapshot = await getDocs(q);
+                
+                projectData.sets = {};
+                querySnapshot.forEach((doc) => {
+                    projectData.sets[doc.id] = doc.data();
+                });
 
-                if (docSnap.exists()) {
-                    projectData = docSnap.data();
-                    if(!projectData.sets) projectData.sets = {};
-                } else {
-                    // Initialize empty data if new user
-                    projectData = { sets: {} };
-                }
-
-                // --- 追加: タグのサジェストリストを生成 ---
                 const tags = new Set(Object.values(projectData.sets).map(s => s.tag).filter(t => t));
                 document.getElementById('tag-list').innerHTML = Array.from(tags).map(t => `<option value="${t}">`).join('');
-                // ----------------------------------------
 
                 renderSetList();
             } catch (e) {
@@ -297,7 +279,7 @@
             }
         }
 
-        // Save Data: Write to "users/{uid}" document
+        // バッチ処理で自分が保持しているセットを保存（上書き）する
         window.saveToCloud = async function() {
             if (!currentUser) return;
             const btn = document.getElementById('btn-save-all');
@@ -306,16 +288,24 @@
             btn.disabled = true;
 
             try {
-                const docRef = doc(db, "users", currentUser.uid);
-                // Save the entire JSON object
-                await setDoc(docRef, projectData);
+                const batch = writeBatch(db);
+                
+                Object.keys(projectData.sets).forEach(key => {
+                    const setData = projectData.sets[key];
+                    // 保存時に必ず自分のUIDをownerIdとして設定する（Layer 2,4向け）
+                    setData.ownerId = currentUser.uid; 
+                    
+                    const docRef = doc(db, "sets", key);
+                    batch.set(docRef, setData);
+                });
+
+                await batch.commit();
                 
                 btn.innerText = "✅ SAVED!";
                 setTimeout(() => { 
                     btn.innerText = originalText; 
                     btn.disabled = false;
-                    // 保存時にもサジェストリストを更新
-                    loadUserData();
+                    loadUserData(); // サジェストリスト更新等のため再読み込み
                 }, 1500);
             } catch (e) {
                 console.error("Save Error:", e);
@@ -325,21 +315,20 @@
             }
         };
 
-        // --- UI LOGIC (Ported from V3.5) ---
+        // --- UI LOGIC ---
 
         window.createNewSet = function() {
             if (!currentUser) return alert("Please Login first.");
             const id = prompt("新しいセットIDを入力してください (英数字推奨)", "set_" + Date.now());
             if (!id) return;
-            // Prevent overwriting existing key by accident
             if (projectData.sets[id]) return alert("ID already exists.");
             
             projectData.sets[id] = {
                 name: "New Set",
                 recorder: currentUser.displayName || "Unknown",
+                ownerId: currentUser.uid, // 新規作成時に付与
                 image: "",
                 tag: "",
-                // Initialize 16 empty pads
                 samples: Array(16).fill(null).map((_, i) => ({ id: i, url: "", label: "", mode: "gate", loop: false }))
             };
             
@@ -347,13 +336,21 @@
             selectSet(id);
         };
 
-        window.deleteCurrentSet = function() {
-            if(!confirm(`セット "${currentSetKey}" を削除しますか？`)) return;
-            delete projectData.sets[currentSetKey];
-            currentSetKey = null;
-            renderSetList();
-            document.getElementById('set-metadata').style.display = 'none';
-            document.getElementById('grid-container').style.display = 'none';
+        window.deleteCurrentSet = async function() {
+            if(!confirm(`セット "${currentSetKey}" を削除しますか？\n(クラウドからも即座に削除されます)`)) return;
+            
+            try {
+                // DBからも即削除
+                await deleteDoc(doc(db, "sets", currentSetKey));
+                delete projectData.sets[currentSetKey];
+                currentSetKey = null;
+                renderSetList();
+                document.getElementById('set-metadata').style.display = 'none';
+                document.getElementById('grid-container').style.display = 'none';
+                alert("削除しました");
+            } catch(e) {
+                alert("削除に失敗しました: " + e.message);
+            }
         };
 
         window.duplicateCurrentSet = function() {
@@ -361,6 +358,7 @@
             if(!newId || projectData.sets[newId]) return;
             const copy = JSON.parse(JSON.stringify(projectData.sets[currentSetKey]));
             copy.name += " (Copy)";
+            copy.ownerId = currentUser.uid;
             projectData.sets[newId] = copy;
             renderSetList();
             selectSet(newId);
@@ -382,13 +380,12 @@
         function selectSet(key) {
             currentSetKey = key;
             const setData = projectData.sets[key];
-            renderSetList(); // Update highlight
+            renderSetList(); 
             
             document.getElementById('toolbar-title').innerText = setData.name;
             document.getElementById('set-metadata').style.display = 'grid';
             document.getElementById('grid-container').style.display = 'grid';
             
-            // Fill Metadata Inputs
             document.getElementById('meta-name').value = setData.name;
             document.getElementById('meta-recorder').value = setData.recorder;
             document.getElementById('meta-tag').value = setData.tag || "";
@@ -454,7 +451,6 @@
             document.getElementById('edit-random').checked = !!sample.randomStart;
         }
 
-        // Helpers exposed to global scope
         window.updateMetadata = function(field, value) {
             if(!currentSetKey) return;
             const set = projectData.sets[currentSetKey];
@@ -481,7 +477,6 @@
             if(currentSource) { currentSource.stop(); currentSource = null; }
             
             try {
-                // Fetch directly from Cloud URL
                 const res = await fetch(sample.url);
                 const buf = await res.arrayBuffer();
                 const audioBuf = await audioCtx.decodeAudioData(buf);
@@ -505,7 +500,7 @@
             document.getElementById('edit-label').value = "";
         };
 
-        // --- STORAGE UPLOAD LOGIC (Firebase Storage) ---
+        // --- STORAGE UPLOAD LOGIC ---
 
         const dropAudio = document.getElementById('drop-zone-audio');
         dropAudio.addEventListener('dragover', e => { e.preventDefault(); dropAudio.style.borderColor = '#00ccff'; });
@@ -540,13 +535,10 @@
             dz.classList.add('uploading');
 
             try {
-                // Storage Path: users/{uid}/{setKey}/{timestamp_filename}
                 const path = `users/${currentUser.uid}/${currentSetKey}/${Date.now()}_${file.name}`;
                 const storageRef = ref(storage, path);
                 
-                // Upload
                 const snapshot = await uploadBytes(storageRef, file);
-                // Get URL
                 const downloadURL = await getDownloadURL(snapshot.ref);
                 
                 if (type === 'audio') {
