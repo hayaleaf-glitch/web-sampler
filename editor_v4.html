@@ -5,8 +5,9 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Solosola V4 Studio | Cloud Edition</title>
     <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@100;300;400;700&display=swap" rel="stylesheet">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/lamejs/1.2.1/lame.min.js"></script>
+
     <style>
-        /* --- CSS (Based on V3.5 Style) --- */
         :root { 
             --bg-color: #1a1a1a; --panel-color: #252525; --text-color: #e0e0e0; 
             --accent-color: #00ccff; --border-color: #444; --warn-color: #ff4444; 
@@ -14,12 +15,10 @@
         }
         body { background-color: var(--bg-color); color: var(--text-color); font-family: 'Helvetica Neue', 'Noto Sans JP', sans-serif; margin: 0; display: flex; height: 100vh; overflow: hidden; }
         
-        /* Layout */
         #sidebar { width: 280px; background: #111; border-right: 1px solid var(--border-color); display: flex; flex-direction: column; }
         #main-area { flex: 1; display: flex; flex-direction: column; height: 100%; position: relative; }
         #inspector { width: 320px; background: var(--panel-color); border-left: 1px solid var(--border-color); display: flex; flex-direction: column; overflow-y: auto; }
         
-        /* Typography & Buttons */
         h1, h2, h3 { font-weight: 300; margin: 0; }
         .btn { border: none; padding: 8px 12px; border-radius: 4px; cursor: pointer; font-weight: bold; transition: opacity 0.2s; font-size: 0.8rem; }
         .btn:hover { opacity: 0.8; }
@@ -32,7 +31,6 @@
         input[type="text"], select { background: #111; border: 1px solid #555; color: #fff; padding: 8px; border-radius: 4px; width: 100%; box-sizing: border-box; }
         label { display: block; font-size: 0.75rem; color: #888; margin-bottom: 4px; }
         
-        /* Sidebar Components */
         .sidebar-header { padding: 20px; border-bottom: 1px solid var(--border-color); }
         .project-status { font-size: 0.7rem; color: #666; margin-top: 5px; display: flex; align-items: center; gap: 5px; }
         .status-dot { width: 8px; height: 8px; border-radius: 50%; background: #555; }
@@ -51,7 +49,6 @@
         
         .sidebar-footer { padding: 15px; border-top: 1px solid var(--border-color); display: flex; gap: 10px; }
         
-        /* Main Area Components */
         #toolbar { height: 60px; border-bottom: 1px solid var(--border-color); display: flex; align-items: center; padding: 0 20px; justify-content: space-between; background: #222; }
         #workspace { flex: 1; padding: 30px; overflow-y: auto; display: flex; flex-direction: column; align-items: center; }
 
@@ -63,36 +60,56 @@
         
         #bg-preview { 
             width: 100%; height: 100px; background: #000; margin-top: 5px; border-radius: 4px; border: 1px dashed #555;
-            display: flex; align-items: center; justify-content: center; font-size: 0.8rem; color: #666; cursor: pointer; background-size: cover; background-position: center;
+            display: flex; align-items: center; justify-content: center; font-size: 0.8rem; color: #666; cursor: pointer; background-size: cover; background-position: center; transition: 0.2s;
         }
-        #bg-preview:hover { border-color: var(--accent-color); color: var(--accent-color); }
+        #bg-preview:hover, #bg-preview.drag-over { border-color: var(--accent-color); color: var(--accent-color); }
 
         #grid-container { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; width: 500px; height: 500px; }
+        
         .pad-cell { 
-            background: #333; border-radius: 4px; border: 1px solid #555; position: relative;
+            background: #333; border-radius: 4px; border: 2px solid #555; position: relative;
             cursor: pointer; transition: all 0.1s; display: flex; flex-direction: column; justify-content: center; align-items: center;
         }
+        .pad-cell:hover { background: #3a3a3a; }
         .pad-cell.selected { border-color: var(--accent-color); box-shadow: 0 0 10px rgba(0,204,255,0.2); background: #383838; }
         .pad-cell.playing { border-color: var(--success-color); background: #2a4035; }
         .pad-cell.has-file { background: #2a3540; }
-        .pad-num { position: absolute; top: 5px; left: 8px; font-size: 0.7rem; opacity: 0.3; }
-        .pad-label { font-size: 0.8rem; text-align: center; pointer-events: none; padding: 0 5px; word-break: break-all; }
-        .pad-mode { position: absolute; bottom: 5px; right: 5px; font-size: 0.6rem; color: var(--accent-color); opacity: 0.8; }
+        
+        .pad-cell.drag-over { border-color: var(--success-color); background: rgba(0, 255, 153, 0.1); transform: scale(1.02); }
+        .pad-cell.uploading { pointer-events: none; opacity: 0.5; animation: pulse 1s infinite; }
+        @keyframes pulse { 0% { border-color: #555; } 50% { border-color: var(--accent-color); } 100% { border-color: #555; } }
 
-        /* Inspector Components */
+        .pad-num { position: absolute; top: 5px; left: 8px; font-size: 0.7rem; opacity: 0.3; pointer-events: none; }
+        .pad-label { font-size: 0.8rem; text-align: center; pointer-events: none; padding: 0 5px; word-break: break-all; }
+        .pad-mode { position: absolute; bottom: 5px; right: 5px; font-size: 0.6rem; color: var(--accent-color); opacity: 0.8; pointer-events: none; }
+
         .inspector-header { padding: 20px; border-bottom: 1px solid var(--border-color); }
         .inspector-content { padding: 20px; }
         .form-group { margin-bottom: 15px; }
+        
         #drop-zone-audio {
             border: 2px dashed #555; padding: 20px; text-align: center; border-radius: 4px; cursor: pointer; color: #888; font-size: 0.8rem; transition: 0.2s;
         }
-        #drop-zone-audio:hover { border-color: var(--accent-color); color: var(--accent-color); background: rgba(0,204,255,0.05); }
+        #drop-zone-audio:hover, #drop-zone-audio.drag-over { border-color: var(--accent-color); color: var(--accent-color); background: rgba(0,204,255,0.05); }
         #drop-zone-audio.uploading { pointer-events: none; opacity: 0.5; animation: pulse 1s infinite; }
-        @keyframes pulse { 0% { border-color: #555; } 50% { border-color: var(--accent-color); } 100% { border-color: #555; } }
 
+        /* 【FIX】モバイルアクセスブロック用のUI */
+        #mobile-blocker {
+            display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(17,17,17,0.95); z-index: 9999; justify-content: center; align-items: center; flex-direction: column;
+            padding: 30px; text-align: center; color: #fff;
+        }
+        #mobile-blocker h2 { margin-bottom: 15px; letter-spacing: 0.1em; font-weight: 300; }
+        #mobile-blocker p { font-size: 0.9rem; line-height: 1.6; opacity: 0.8; margin-bottom: 30px; }
     </style>
 </head>
 <body>
+    
+    <div id="mobile-blocker">
+        <h2>🖥️ PC ONLY</h2>
+        <p>STUDIO PROはPC専用の高度な編集環境です。<br>スマートフォンからは通常のPlayerをご利用ください。</p>
+        <a href="./index.html" class="btn btn-primary" style="text-decoration: none;">Playerに戻る</a>
+    </div>
 
     <div id="sidebar">
         <div class="sidebar-header">
@@ -165,9 +182,9 @@
             
             <div class="form-group">
                 <label>Audio File (Drop file to upload)</label>
-                <div id="drop-zone-audio">Drop Audio Here</div>
-                <input type="text" id="edit-url" readonly style="font-size:0.7rem; color:#666; margin-top:5px; border:none; background:transparent;">
-                <button class="btn btn-secondary" style="width:100%; margin-top:5px;" onclick="previewAudio()">▶️ Preview</button>
+                <div id="drop-zone-audio">Drop Audio Here (or directly on pad)</div>
+                <input type="text" id="edit-url" readonly style="font-size:0.7rem; color:#666; margin-top:5px; border:none; background:transparent; width:100%; text-overflow: ellipsis;">
+                <button id="btn-preview" class="btn btn-secondary" style="width:100%; margin-top:5px;" onclick="previewAudio()">▶️ Preview</button>
             </div>
 
             <div class="form-group">
@@ -199,7 +216,7 @@
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
         import { getAuth, signInWithPopup, GoogleAuthProvider, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
-        import { getFirestore, doc, getDoc, setDoc, collection, query, where, getDocs, writeBatch, deleteDoc } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+        import { getFirestore, doc, setDoc, collection, query, where, getDocs, writeBatch, deleteDoc } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
         import { getStorage, ref, uploadBytes, getDownloadURL } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-storage.js";
 
         const firebaseConfig = {
@@ -216,7 +233,6 @@
         const db = getFirestore(app);
         const storage = getStorage(app);
 
-        // --- GLOBAL STATE ---
         let currentUser = null;
         let projectData = { sets: {} }; 
         let currentSetKey = null;
@@ -224,15 +240,17 @@
         let audioCtx = new (window.AudioContext || window.webkitAudioContext)();
         let currentSource = null;
 
-        // --- AUTHENTICATION LOGIC ---
+        // 【FIX】モバイルアクセスをブロック
+        if (window.innerWidth < 800 || /iphone|ipad|ipod|android/.test(navigator.userAgent.toLowerCase())) {
+            document.getElementById('mobile-blocker').style.display = 'flex';
+        }
+
         const btnLogin = document.getElementById('btn-login');
         const userInfo = document.getElementById('user-info');
         const statusText = document.getElementById('status-text');
         const statusDot = document.getElementById('status-dot');
 
-        btnLogin.addEventListener('click', () => {
-            signInWithPopup(auth, new GoogleAuthProvider()).catch(error => { alert("Login Failed: " + error.message); });
-        });
+        btnLogin.addEventListener('click', () => { signInWithPopup(auth, new GoogleAuthProvider()).catch(error => alert("Login Failed: " + error.message)); });
 
         onAuthStateChanged(auth, async (user) => {
             if (user) {
@@ -243,7 +261,6 @@
                 statusText.innerText = "Connected to Cloud";
                 statusDot.classList.add('active');
                 document.getElementById('btn-save-all').disabled = false;
-                
                 await loadUserData();
             } else {
                 currentUser = null;
@@ -255,67 +272,42 @@
             }
         });
 
-        // --- CLOUD DATA LOGIC (Firestore フラット化対応) ---
-
-        // 自分が作成したセット(ownerId一致)だけを取得する
         async function loadUserData() {
             if (!currentUser) return;
             try {
                 const q = query(collection(db, "sets"), where("ownerId", "==", currentUser.uid));
                 const querySnapshot = await getDocs(q);
-                
                 projectData.sets = {};
-                querySnapshot.forEach((doc) => {
-                    projectData.sets[doc.id] = doc.data();
-                });
+                querySnapshot.forEach((doc) => { projectData.sets[doc.id] = doc.data(); });
 
                 const tags = new Set(Object.values(projectData.sets).map(s => s.tag).filter(t => t));
                 document.getElementById('tag-list').innerHTML = Array.from(tags).map(t => `<option value="${t}">`).join('');
-
                 renderSetList();
-            } catch (e) {
-                console.error("Load Error:", e);
-                alert("データの読み込みに失敗しました: " + e.message);
-            }
+            } catch (e) { console.error(e); alert("Load Error: " + e.message); }
         }
 
-        // バッチ処理で自分が保持しているセットを保存（上書き）する
         window.saveToCloud = async function() {
             if (!currentUser) return;
             const btn = document.getElementById('btn-save-all');
             const originalText = btn.innerText;
-            btn.innerText = "Saving...";
-            btn.disabled = true;
+            btn.innerText = "Saving..."; btn.disabled = true;
 
             try {
                 const batch = writeBatch(db);
-                
                 Object.keys(projectData.sets).forEach(key => {
                     const setData = projectData.sets[key];
-                    // 保存時に必ず自分のUIDをownerIdとして設定する（Layer 2,4向け）
                     setData.ownerId = currentUser.uid; 
-                    
-                    const docRef = doc(db, "sets", key);
-                    batch.set(docRef, setData);
+                    batch.set(doc(db, "sets", key), setData);
                 });
-
                 await batch.commit();
                 
                 btn.innerText = "✅ SAVED!";
-                setTimeout(() => { 
-                    btn.innerText = originalText; 
-                    btn.disabled = false;
-                    loadUserData(); // サジェストリスト更新等のため再読み込み
-                }, 1500);
+                setTimeout(() => { btn.innerText = originalText; btn.disabled = false; loadUserData(); }, 1500);
             } catch (e) {
-                console.error("Save Error:", e);
-                alert("保存に失敗しました: " + e.message);
-                btn.innerText = originalText;
-                btn.disabled = false;
+                console.error(e); alert("Save Error: " + e.message);
+                btn.innerText = originalText; btn.disabled = false;
             }
         };
-
-        // --- UI LOGIC ---
 
         window.createNewSet = function() {
             if (!currentUser) return alert("Please Login first.");
@@ -324,49 +316,37 @@
             if (projectData.sets[id]) return alert("ID already exists.");
             
             projectData.sets[id] = {
-                name: "New Set",
-                recorder: currentUser.displayName || "Unknown",
-                ownerId: currentUser.uid, // 新規作成時に付与
-                image: "",
-                tag: "",
+                name: "New Set", recorder: currentUser.displayName || "Unknown",
+                ownerId: currentUser.uid, image: "", tag: "",
                 samples: Array(16).fill(null).map((_, i) => ({ id: i, url: "", label: "", mode: "gate", loop: false }))
             };
-            
-            renderSetList();
-            selectSet(id);
+            renderSetList(); selectSet(id);
         };
 
         window.deleteCurrentSet = async function() {
             if(!confirm(`セット "${currentSetKey}" を削除しますか？\n(クラウドからも即座に削除されます)`)) return;
-            
             try {
-                // DBからも即削除
                 await deleteDoc(doc(db, "sets", currentSetKey));
-                delete projectData.sets[currentSetKey];
-                currentSetKey = null;
+                delete projectData.sets[currentSetKey]; currentSetKey = null;
                 renderSetList();
                 document.getElementById('set-metadata').style.display = 'none';
                 document.getElementById('grid-container').style.display = 'none';
-                alert("削除しました");
-            } catch(e) {
-                alert("削除に失敗しました: " + e.message);
-            }
+                document.getElementById('pad-editor-content').style.display = 'none';
+                document.getElementById('toolbar-title').innerText = "No Set Selected";
+            } catch(e) { alert("Delete Error: " + e.message); }
         };
 
         window.duplicateCurrentSet = function() {
             const newId = prompt(`"${currentSetKey}" のコピーを作成します。新ID:`, currentSetKey + "_copy");
             if(!newId || projectData.sets[newId]) return;
             const copy = JSON.parse(JSON.stringify(projectData.sets[currentSetKey]));
-            copy.name += " (Copy)";
-            copy.ownerId = currentUser.uid;
+            copy.name += " (Copy)"; copy.ownerId = currentUser.uid;
             projectData.sets[newId] = copy;
-            renderSetList();
-            selectSet(newId);
+            renderSetList(); selectSet(newId);
         };
 
         function renderSetList() {
-            const list = document.getElementById('set-list');
-            list.innerHTML = '';
+            const list = document.getElementById('set-list'); list.innerHTML = '';
             Object.keys(projectData.sets).forEach(key => {
                 const set = projectData.sets[key];
                 const el = document.createElement('div');
@@ -381,35 +361,30 @@
             currentSetKey = key;
             const setData = projectData.sets[key];
             renderSetList(); 
-            
             document.getElementById('toolbar-title').innerText = setData.name;
             document.getElementById('set-metadata').style.display = 'grid';
             document.getElementById('grid-container').style.display = 'grid';
-            
             document.getElementById('meta-name').value = setData.name;
             document.getElementById('meta-recorder').value = setData.recorder;
             document.getElementById('meta-tag').value = setData.tag || "";
-            
             updateBgPreview(setData.image);
             renderGrid();
         }
 
         function updateBgPreview(url) {
             const prev = document.getElementById('bg-preview');
-            if(url) {
-                prev.innerText = "";
-                prev.style.backgroundImage = `url('${url}')`;
-            } else {
-                prev.style.backgroundImage = 'none';
-                prev.innerText = "No Image (Drop Here)";
-            }
+            if(url) { prev.innerText = ""; prev.style.backgroundImage = `url('${url}')`; } 
+            else { prev.style.backgroundImage = 'none'; prev.innerText = "No Image (Drop Here)"; }
         }
 
-        // --- GRID & PAD LOGIC ---
+        window.updateMetadata = function(field, value) {
+            if(!currentSetKey) return;
+            projectData.sets[currentSetKey][field] = value;
+            if (field === 'name') document.getElementById('toolbar-title').innerText = value;
+        };
 
         function renderGrid() {
-            const container = document.getElementById('grid-container');
-            container.innerHTML = '';
+            const container = document.getElementById('grid-container'); container.innerHTML = '';
             const samples = projectData.sets[currentSetKey].samples;
             
             for(let i=0; i<16; i++) {
@@ -417,15 +392,30 @@
                 const el = document.createElement('div');
                 el.className = `pad-cell ${sample.url ? 'has-file' : ''}`;
                 el.id = `pad-${i}`;
-                el.onclick = () => selectPad(i);
+                
                 el.innerHTML = `
                     <span class="pad-num">${i}</span>
                     <span class="pad-label">${sample.label || ''}</span>
                     <span class="pad-mode">${sample.mode === 'gate' ? 'GATE' : 'ONE'}</span>
                 `;
+                
+                el.onclick = () => selectPad(i);
+
+                el.addEventListener('dragover', e => { e.preventDefault(); el.classList.add('drag-over'); });
+                el.addEventListener('dragleave', e => { e.preventDefault(); el.classList.remove('drag-over'); });
+                el.addEventListener('drop', async e => {
+                    e.preventDefault();
+                    el.classList.remove('drag-over');
+                    if(e.dataTransfer.files[0] && currentUser) {
+                        selectPad(i);
+                        await uploadFileToCloud(e.dataTransfer.files[0], 'audio');
+                    }
+                });
+
                 container.appendChild(el);
             }
-            document.getElementById('pad-editor-content').style.display = 'none';
+            if (currentPadId !== null) { document.getElementById(`pad-${currentPadId}`).classList.add('selected'); } 
+            else { document.getElementById('pad-editor-content').style.display = 'none'; }
         }
 
         function selectPad(id) {
@@ -449,74 +439,131 @@
             document.getElementById('edit-loop').checked = !!sample.loop;
             document.getElementById('edit-fadeIn').checked = !!sample.fadeIn;
             document.getElementById('edit-random').checked = !!sample.randomStart;
+            
+            // Preview状態のリセット
+            if(currentSource) { currentSource.stop(); currentSource = null; }
+            document.getElementById('btn-preview').innerHTML = "▶️ Preview";
         }
-
-        window.updateMetadata = function(field, value) {
-            if(!currentSetKey) return;
-            const set = projectData.sets[currentSetKey];
-            set[field] = value;
-            if (field === 'name') document.getElementById('toolbar-title').innerText = value;
-        };
 
         window.updatePadData = function(field, value) {
             if(!currentSetKey || currentPadId === null) return;
-            const samples = projectData.sets[currentSetKey].samples;
-            const sample = samples.find(s => s.id === currentPadId);
-            if(sample) {
-                sample[field] = value;
-                renderGrid();
-                document.getElementById(`pad-${currentPadId}`).classList.add('selected');
-            }
+            const sample = projectData.sets[currentSetKey].samples.find(s => s.id === currentPadId);
+            if(sample) { sample[field] = value; renderGrid(); }
         };
 
+        // 【FIX】プレビュー再生をトグル式（ON/OFF）に変更
         window.previewAudio = async function() {
             if(!currentSetKey || currentPadId === null) return;
+            const btn = document.getElementById('btn-preview');
+            
+            if(currentSource) { 
+                currentSource.stop(); currentSource = null; 
+                btn.innerHTML = "▶️ Preview";
+                document.getElementById(`pad-${currentPadId}`).classList.remove('playing');
+                return; 
+            }
+            
             const sample = projectData.sets[currentSetKey].samples.find(s => s.id === currentPadId);
             if(!sample || !sample.url) return;
             
-            if(currentSource) { currentSource.stop(); currentSource = null; }
-            
             try {
+                if (audioCtx.state === 'suspended') audioCtx.resume();
                 const res = await fetch(sample.url);
                 const buf = await res.arrayBuffer();
                 const audioBuf = await audioCtx.decodeAudioData(buf);
                 const src = audioCtx.createBufferSource();
-                src.buffer = audioBuf;
-                src.connect(audioCtx.destination);
-                src.start(0);
-                currentSource = src;
+                src.buffer = audioBuf; src.loop = sample.loop; src.connect(audioCtx.destination); src.start(0);
                 
+                currentSource = src;
+                btn.innerHTML = "⏹ Stop Preview";
                 const pad = document.getElementById(`pad-${currentPadId}`);
                 pad.classList.add('playing');
-                setTimeout(() => pad.classList.remove('playing'), Math.min(audioBuf.duration * 1000, 500));
+                
+                src.onended = () => {
+                    if (currentSource === src) {
+                        currentSource = null;
+                        btn.innerHTML = "▶️ Preview";
+                        pad.classList.remove('playing');
+                    }
+                };
             } catch(e) { console.error(e); }
         };
         
         window.clearPad = function() {
             if(!confirm("Clear this pad?")) return;
-            window.updatePadData('url', '');
-            window.updatePadData('label', '');
-            document.getElementById('edit-url').value = "";
-            document.getElementById('edit-label').value = "";
+            window.updatePadData('url', ''); window.updatePadData('label', '');
+            document.getElementById('edit-url').value = ""; document.getElementById('edit-label').value = "";
         };
 
-        // --- STORAGE UPLOAD LOGIC ---
+        // --- IMAGE COMPRESSION & MP3 ENCODING LOGIC ---
+
+        // 【FIX】画像のクライアントサイド圧縮（Canvas使用）
+        function compressImage(file, maxWidth, maxHeight) {
+            return new Promise((resolve) => {
+                const img = new Image();
+                img.src = URL.createObjectURL(file);
+                img.onload = () => {
+                    const canvas = document.createElement('canvas');
+                    let w = img.width, h = img.height;
+                    if (w > maxWidth) { h = Math.round((h * maxWidth) / w); w = maxWidth; }
+                    if (h > maxHeight) { w = Math.round((w * maxHeight) / h); h = maxHeight; }
+                    canvas.width = w; canvas.height = h;
+                    const ctx = canvas.getContext('2d');
+                    ctx.drawImage(img, 0, 0, w, h);
+                    canvas.toBlob((blob) => { resolve(blob); }, 'image/jpeg', 0.85); // 85% JPEG
+                };
+            });
+        }
+
+        async function convertToMP3Blob(file) {
+            return new Promise(async (resolve, reject) => {
+                try {
+                    if (audioCtx.state === 'suspended') audioCtx.resume();
+                    const arrayBuffer = await file.arrayBuffer();
+                    const audioBuf = await audioCtx.decodeAudioData(arrayBuffer);
+                    const channels = audioBuf.numberOfChannels;
+                    const sampleRate = audioBuf.sampleRate;
+                    const mp3encoder = new window.lamejs.Mp3Encoder(channels, sampleRate, 128); 
+                    const mp3Data = [];
+                    const sampleBlockSize = 1152;
+                    
+                    const left = audioBuf.getChannelData(0);
+                    const right = channels > 1 ? audioBuf.getChannelData(1) : left;
+
+                    const leftInt16 = new Int16Array(left.length);
+                    const rightInt16 = new Int16Array(right.length);
+                    for (let i = 0; i < left.length; i++) {
+                        leftInt16[i] = Math.max(-32768, Math.min(32767, left[i] * 32768));
+                        if (channels > 1) { rightInt16[i] = Math.max(-32768, Math.min(32767, right[i] * 32768)); }
+                    }
+
+                    for (let i = 0; i < leftInt16.length; i += sampleBlockSize) {
+                        const leftChunk = leftInt16.subarray(i, i + sampleBlockSize);
+                        let mp3buf;
+                        if (channels > 1) { const rightChunk = rightInt16.subarray(i, i + sampleBlockSize); mp3buf = mp3encoder.encodeBuffer(leftChunk, rightChunk); } 
+                        else { mp3buf = mp3encoder.encodeBuffer(leftChunk); }
+                        if (mp3buf.length > 0) mp3Data.push(mp3buf);
+                    }
+                    const mp3buf = mp3encoder.flush();
+                    if (mp3buf.length > 0) mp3Data.push(mp3buf);
+                    resolve(new Blob(mp3Data, { type: 'audio/mp3' }));
+                } catch (e) { reject(e); }
+            });
+        }
 
         const dropAudio = document.getElementById('drop-zone-audio');
-        dropAudio.addEventListener('dragover', e => { e.preventDefault(); dropAudio.style.borderColor = '#00ccff'; });
-        dropAudio.addEventListener('dragleave', e => { e.preventDefault(); dropAudio.style.borderColor = '#555'; });
+        dropAudio.addEventListener('dragover', e => { e.preventDefault(); dropAudio.classList.add('drag-over'); });
+        dropAudio.addEventListener('dragleave', e => { e.preventDefault(); dropAudio.classList.remove('drag-over'); });
         dropAudio.addEventListener('drop', async e => {
-            e.preventDefault(); dropAudio.style.borderColor = '#555';
-            if(e.dataTransfer.files[0] && currentUser) {
-                await uploadFileToCloud(e.dataTransfer.files[0], 'audio');
-            }
+            e.preventDefault(); dropAudio.classList.remove('drag-over');
+            if(e.dataTransfer.files[0] && currentUser) await uploadFileToCloud(e.dataTransfer.files[0], 'audio');
         });
 
         const dropBg = document.getElementById('bg-preview');
-        dropBg.addEventListener('dragover', e => { e.preventDefault(); dropBg.style.borderColor = '#00ccff'; });
-        dropBg.addEventListener('dragleave', e => { e.preventDefault(); dropBg.style.borderColor = '#555'; });
+        dropBg.addEventListener('dragover', e => { e.preventDefault(); dropBg.classList.add('drag-over'); });
+        dropBg.addEventListener('dragleave', e => { e.preventDefault(); dropBg.classList.remove('drag-over'); });
         dropBg.addEventListener('drop', async e => {
-            e.preventDefault(); dropBg.style.borderColor = '#555';
+            e.preventDefault(); dropBg.classList.remove('drag-over');
             if(e.dataTransfer.files[0] && e.dataTransfer.files[0].type.startsWith('image/') && currentUser) {
                 await uploadFileToCloud(e.dataTransfer.files[0], 'image');
             }
@@ -528,38 +575,50 @@
 
         async function uploadFileToCloud(file, type) {
             if(!currentSetKey) return alert("Select a set first.");
+            if(type === 'audio' && currentPadId === null) return alert("Select a pad first.");
             
             const dz = type === 'audio' ? document.getElementById('drop-zone-audio') : document.getElementById('bg-preview');
+            const padEl = type === 'audio' ? document.getElementById(`pad-${currentPadId}`) : null;
+            
             const originalText = dz.innerText;
-            dz.innerText = "Uploading...";
+            dz.innerText = type === 'audio' ? "Converting & Uploading..." : "Compressing & Uploading..."; 
             dz.classList.add('uploading');
+            if(padEl) padEl.classList.add('uploading');
 
             try {
-                const path = `users/${currentUser.uid}/${currentSetKey}/${Date.now()}_${file.name}`;
+                let uploadBlob = file;
+                let fileName = file.name;
+                const originalNameBase = file.name.replace(/\.[^/.]+$/, "");
+
+                if (type === 'audio') {
+                    uploadBlob = await convertToMP3Blob(file);
+                    fileName = `${originalNameBase}.mp3`;
+                } else if (type === 'image') {
+                    // 【FIX】画像を1000pxに圧縮
+                    uploadBlob = await compressImage(file, 1000, 1000);
+                    fileName = `${originalNameBase}.jpg`;
+                }
+
+                const path = `users/${currentUser.uid}/${currentSetKey}/${Date.now()}_${fileName}`;
                 const storageRef = ref(storage, path);
-                
-                const snapshot = await uploadBytes(storageRef, file);
+                const snapshot = await uploadBytes(storageRef, uploadBlob);
                 const downloadURL = await getDownloadURL(snapshot.ref);
                 
                 if (type === 'audio') {
                     window.updatePadData('url', downloadURL);
-                    if(!document.getElementById('edit-label').value) {
-                        const cleanName = file.name.replace(/\.[^/.]+$/, "");
-                        window.updatePadData('label', cleanName);
-                        document.getElementById('edit-label').value = cleanName;
-                    }
                     document.getElementById('edit-url').value = downloadURL;
+                    const cleanName = originalNameBase.substring(0, 15);
+                    window.updatePadData('label', cleanName);
+                    document.getElementById('edit-label').value = cleanName;
                 } else {
                     window.updateMetadata('image', downloadURL);
                     updateBgPreview(downloadURL);
                 }
-
             } catch (error) {
-                console.error("Upload failed", error);
-                alert("Upload failed: " + error.message);
+                console.error("Upload failed", error); alert("Upload failed: " + error.message);
             } finally {
-                dz.innerText = originalText;
-                dz.classList.remove('uploading');
+                dz.innerText = originalText; dz.classList.remove('uploading');
+                if(padEl) padEl.classList.remove('uploading');
             }
         }
     </script>

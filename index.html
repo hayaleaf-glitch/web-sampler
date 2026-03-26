@@ -11,227 +11,257 @@
     <meta name="theme-color" content="#111111">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@100;300&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@100;300;700&display=swap" rel="stylesheet">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/lamejs/1.2.1/lame.min.js"></script>
     <style>
-        :root { --bg-color: #111111; --text-color: #ffffff; --fx-active-color: #00ccff; --pad-base: brightness(1.0) grayscale(0.2); --pad-active: brightness(1.8) grayscale(0); --pad-dark: brightness(0.1) grayscale(1.0) blur(4px); }
+        /* iOS虫眼鏡・ズーム・ハイライトの完全無効化 */
+        * { touch-action: manipulation; -webkit-tap-highlight-color: transparent; }
+        
+        :root { --bg-color: #111111; --text-color: #ffffff; --fx-active-color: #00ccff; --edit-color: #ff3366; --spoid-color: #ffaa00; --paste-color: #00ffaa; --danger-color: #ff4444; --pad-base: brightness(1.0) grayscale(0.2); --pad-active: brightness(1.8) grayscale(0); --pad-dark: brightness(0.1) grayscale(1.0) blur(4px); }
         
         body { 
             background-color: var(--bg-color); color: var(--text-color); 
             font-family: 'Helvetica Neue', 'Noto Sans JP', sans-serif; font-weight: 100; 
-            margin: 0; 
-            height: 100vh; /* Fallback for older browsers */
-            height: 100dvh; 
-            padding-top: env(safe-area-inset-top);
-            padding-bottom: env(safe-area-inset-bottom);
-            padding-left: env(safe-area-inset-left);
-            padding-right: env(safe-area-inset-right);
-            box-sizing: border-box;
-            overflow: hidden; 
-            display: flex; flex-direction: column; 
+            margin: 0; height: 100vh; height: 100dvh; 
+            padding-bottom: env(safe-area-inset-bottom); padding-left: env(safe-area-inset-left); padding-right: env(safe-area-inset-right);
+            box-sizing: border-box; overflow: hidden; display: flex; flex-direction: column; 
             -webkit-user-select: none; user-select: none; -webkit-touch-callout: none; touch-action: none; 
         }
 
-        /* --- GLOBAL MENU ICON --- */
-        #menu-btn {
-            position: absolute; top: max(15px, env(safe-area-inset-top)); right: 20px;
-            font-size: 1.8rem; color: #fff; opacity: 0.5; cursor: pointer; z-index: 60;
-            padding: 5px; line-height: 1; transition: opacity 0.2s;
+        #top-nav {
+            position: absolute; top: 0; left: 0; 
+            display: flex; justify-content: space-between; align-items: flex-end;
+            padding: calc(env(safe-area-inset-top) + 10px) 20px 10px 20px;
+            width: 100%; box-sizing: border-box; z-index: 60;
+            background: linear-gradient(to bottom, rgba(17,17,17,1) 40%, rgba(17,17,17,0));
+            pointer-events: none; 
         }
+        
+        .feed-tabs { display: flex; gap: 15px; align-items: baseline; pointer-events: auto; }
+        .feed-tab { font-size: 0.8rem; letter-spacing: 0.1em; color: #666; cursor: pointer; transition: color 0.2s; font-weight: 700; padding-bottom: 2px;}
+        .feed-tab.active { color: #fff; border-bottom: 2px solid #fff; }
+
+        #menu-btn { font-size: 1.8rem; color: #fff; cursor: pointer; line-height: 0.8; transition: opacity 0.2s; padding: 0 5px; opacity: 0.7; pointer-events: auto; }
         #menu-btn:active { opacity: 1; }
 
-        /* --- MODAL WINDOW (Menu & Tutorial) --- */
-        #modal-overlay {
+        #mode-banner {
+            position: absolute; top: env(safe-area-inset-top); left: 50%; transform: translateX(-50%) translateY(-100%);
+            padding: 8px 20px; border-radius: 20px; font-size: 0.8rem; font-weight: bold; letter-spacing: 0.1em;
+            color: #000; z-index: 65; opacity: 0; transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+            display: flex; align-items: center; gap: 10px; pointer-events: auto; cursor: pointer;
+        }
+        #mode-banner.show { transform: translateX(-50%) translateY(10px); opacity: 1; }
+        #mode-banner.edit { background: var(--edit-color); box-shadow: 0 0 15px rgba(255,51,102,0.5); }
+        #mode-banner.spoid { background: var(--spoid-color); box-shadow: 0 0 15px rgba(255,170,0,0.5); }
+        #mode-banner.paste { background: var(--paste-color); box-shadow: 0 0 15px rgba(0,255,170,0.5); }
+        .mode-cancel-btn { background: rgba(0,0,0,0.2); border-radius: 50%; width: 20px; height: 20px; display: flex; justify-content: center; align-items: center; font-size: 0.8rem; }
+
+        #feed-overlay {
+            position: absolute; top: calc(env(safe-area-inset-top) + 60px); left: 0; 
+            width: 100%; height: calc(100dvh - env(safe-area-inset-top) - 60px);
+            background: rgba(17,17,17,0.98); backdrop-filter: blur(15px); z-index: 55;
+            display: none; flex-direction: column; box-sizing: border-box;
+            opacity: 0; transform: translateY(-10px); transition: all 0.3s ease;
+            overflow-y: auto; padding-bottom: 100px; pointer-events: auto;
+        }
+        #feed-overlay.show { display: flex; opacity: 1; transform: translateY(0); }
+        
+        .feed-list-item { padding: 18px 25px; border-bottom: 1px solid rgba(255,255,255,0.05); display: flex; flex-direction: column; cursor: pointer; transition: background 0.2s; }
+        .feed-list-item:active { background: rgba(255,255,255,0.05); }
+        .feed-list-item.active { border-left: 3px solid var(--fx-active-color); background: rgba(0,204,255,0.05); }
+        .feed-list-title { font-size: 1.1rem; color: #fff; font-weight: 300; display: flex; align-items: center; gap: 10px; }
+        .feed-list-sub { font-size: 0.75rem; color: #666; margin-top: 5px; letter-spacing: 0.05em; }
+        .badge-main { font-size: 0.6rem; background: var(--text-color); color: var(--bg-color); padding: 2px 6px; border-radius: 12px; font-weight: bold; letter-spacing: 0; }
+
+        /* 【FIX】FXエリアの被りとはみ出し防止 */
+        #mobile-fx-zone {
+            flex: 1; width: 100%; position: relative; z-index: 50;
+            display: flex; flex-direction: column; align-items: center; justify-content: center;
+            border-bottom: 1px solid rgba(255,255,255,0.05); transition: border-color 0.3s, box-shadow 0.3s;
+            touch-action: none;
+            overflow: hidden; /* カーソルはみ出し防止 */
+            margin-top: calc(env(safe-area-inset-top) + 60px); /* 上部メニューと物理的に分離 */
+        }
+        #mobile-fx-zone.active-fx { 
+            border-bottom-color: var(--fx-active-color); 
+            box-shadow: inset 0 -10px 20px -10px rgba(0,204,255,0.2);
+            background: radial-gradient(circle at center, rgba(0,204,255,0.03) 0%, transparent 70%);
+        }
+        #mobile-fx-zone::before { content: "FX AREA"; position: absolute; font-size: 0.6rem; letter-spacing: 0.3em; opacity: 0; color: var(--fx-active-color); transition: opacity 0.3s; pointer-events: none;}
+        #mobile-fx-zone.active-fx::before { opacity: 0.5; }
+
+        .modal-overlay {
             display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%;
             background: rgba(0,0,0,0.85); backdrop-filter: blur(5px); z-index: 3000;
             justify-content: center; align-items: center; padding: 20px; box-sizing: border-box;
             opacity: 0; transition: opacity 0.3s;
         }
-        #modal-overlay.show { display: flex; opacity: 1; }
+        .modal-overlay.show { display: flex; opacity: 1; }
         
-        #modal-content {
+        .modal-content {
             background: #1a1a1a; border: 1px solid #333; border-radius: 12px;
             width: 100%; max-width: 360px; max-height: 85dvh; overflow-y: auto;
-            padding: 30px 25px; position: relative; color: #eee;
-            box-shadow: 0 10px 30px rgba(0,0,0,0.8);
+            padding: 30px 25px; position: relative; color: #eee; box-shadow: 0 10px 30px rgba(0,0,0,0.8);
         }
-        .modal-close { 
-            position: absolute; top: 15px; right: 20px; font-size: 1.5rem; 
-            cursor: pointer; color: #666; transition: color 0.2s; line-height: 1;
-        }
+        .modal-close { position: absolute; top: 15px; right: 20px; font-size: 1.5rem; cursor: pointer; color: #666; transition: color 0.2s; line-height: 1; }
         .modal-close:active { color: #fff; }
-        
-        .modal-section { margin-bottom: 30px; }
+        .modal-section { margin-bottom: 25px; }
         .modal-section:last-child { margin-bottom: 0; }
-        .modal-section h3 { font-size: 0.9rem; color: var(--fx-active-color); margin: 0 0 12px 0; letter-spacing: 0.1em; font-weight: 300; border-bottom: 1px solid #333; padding-bottom: 5px; }
-        .modal-section p { font-size: 0.85rem; line-height: 1.6; color: #ccc; margin: 0 0 10px 0; }
-        .modal-section ul { font-size: 0.85rem; color: #ccc; padding-left: 20px; line-height: 1.6; margin: 0; }
-        .modal-section li { margin-bottom: 5px; }
-
-        .modal-btn {
-            display: block; width: 100%; background: #333; color: #fff; text-align: center;
-            padding: 12px; border-radius: 6px; text-decoration: none; font-size: 0.85rem;
-            letter-spacing: 0.1em; border: 1px solid #555; box-sizing: border-box; cursor: pointer; transition: all 0.2s;
-        }
-        .modal-btn:active { background: #555; }
-        .modal-hint { font-size: 0.7rem; color: #666; text-align: center; margin-top: 15px; }
-
-        /* --- In-App Browser Warning --- */
-        #inapp-warning {
-            display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%;
-            background: rgba(17,17,17,0.95); z-index: 9999; flex-direction: column;
-            justify-content: center; align-items: center; text-align: center; padding: 30px; box-sizing: border-box;
-        }
-        #inapp-warning h2 { margin-bottom: 15px; letter-spacing: 0.1em; font-weight: 300; }
-        #inapp-warning p { font-size: 0.9rem; line-height: 1.6; opacity: 0.8; margin-bottom: 30px; }
+        .modal-section h3 { font-size: 0.8rem; color: #888; margin: 0 0 10px 0; letter-spacing: 0.1em; font-weight: 300; border-bottom: 1px solid #333; padding-bottom: 5px; }
         
-        /* --- PWA FAB & PROMPT --- */
-        #pwa-fab {
-            display: none; position: fixed; bottom: max(20px, env(safe-area-inset-bottom)); right: 20px;
-            width: 45px; height: 45px; border-radius: 50%;
-            background: rgba(255,255,255,0.1); border: 1px solid rgba(255,255,255,0.3);
-            backdrop-filter: blur(5px); color: #fff; z-index: 1000;
-            justify-content: center; align-items: center; cursor: pointer;
-            box-shadow: 0 4px 10px rgba(0,0,0,0.5); transition: all 0.2s;
+        .modal-menu-item { display: flex; align-items: center; justify-content: space-between; padding: 12px 0; border-bottom: 1px solid rgba(255,255,255,0.05); cursor: pointer; color: #fff; text-decoration: none; transition: background 0.2s; }
+        .modal-menu-item:active { background: rgba(255,255,255,0.05); }
+        .modal-menu-item span { font-size: 0.95rem; letter-spacing: 0.05em; display: flex; align-items: center; gap: 8px;}
+        .modal-menu-item .icon { color: #666; font-size: 0.8rem; }
+        .modal-menu-item.disabled { opacity: 0.4; cursor: not-allowed; } 
+        .modal-menu-item.pro { color: var(--fx-active-color); }
+        .modal-menu-item.google-login { background: #fff; color: #000; border-radius: 6px; padding: 12px; justify-content: center; margin-bottom: 10px; font-weight: bold; }
+        .modal-menu-item.google-login:active { background: #ddd; }
+        .modal-menu-item.danger { color: var(--danger-color); }
+
+        #user-profile-info { font-size: 0.75rem; color: var(--fx-active-color); margin-bottom: 15px; text-align: center; }
+
+        .form-group { margin-bottom: 15px; }
+        .form-group label { display: block; font-size: 0.75rem; color: #888; margin-bottom: 5px; }
+        .modal-input { background: #111; border: 1px solid #444; color: #fff; padding: 10px; border-radius: 6px; width: 100%; box-sizing: border-box; font-size: 0.9rem; }
+        .modal-input:focus { outline: none; border-color: var(--edit-color); }
+        .checkbox-label { display: flex; align-items: center; gap: 8px; font-size: 0.85rem; color: #eee; margin-bottom: 8px; cursor: pointer; }
+        
+        .btn-file-upload { 
+            display: flex; justify-content: center; align-items: center; background: rgba(255,51,102,0.1); 
+            border: 1px dashed var(--edit-color); color: var(--edit-color); padding: 15px; border-radius: 6px; 
+            cursor: pointer; font-weight: bold; transition: all 0.2s; position: relative; overflow: hidden;
         }
+        .btn-file-upload:active { background: rgba(255,51,102,0.3); }
+        .btn-file-upload input[type="file"] { position: absolute; top: 0; left: 0; width: 100%; height: 100%; opacity: 0; cursor: pointer; }
+
+        #pwa-fab { display: none; position: fixed; bottom: max(20px, env(safe-area-inset-bottom)); right: 20px; width: 45px; height: 45px; border-radius: 50%; background: rgba(255,255,255,0.1); border: 1px solid rgba(255,255,255,0.3); backdrop-filter: blur(5px); color: #fff; z-index: 1000; justify-content: center; align-items: center; cursor: pointer; box-shadow: 0 4px 10px rgba(0,0,0,0.5); transition: all 0.2s; }
         #pwa-fab:active { transform: scale(0.9); }
         #pwa-fab svg { width: 22px; height: 22px; opacity: 0.8; }
-
-        #pwa-prompt {
-            position: fixed; bottom: calc(max(20px, env(safe-area-inset-bottom)) + 60px); right: 20px;
-            background: rgba(255,255,255,0.95); color: #000; padding: 18px 20px;
-            border-radius: 16px 16px 0 16px; font-size: 0.85rem; z-index: 999; box-shadow: 0 10px 25px rgba(0,0,0,0.5);
-            width: 240px; line-height: 1.5; pointer-events: none;
-            transform-origin: bottom right; transform: scale(0); opacity: 0;
-            transition: transform 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275), opacity 0.3s ease;
-        }
+        #pwa-prompt { position: fixed; bottom: calc(max(20px, env(safe-area-inset-bottom)) + 60px); right: 20px; background: rgba(255,255,255,0.95); color: #000; padding: 18px 20px; border-radius: 16px 16px 0 16px; font-size: 0.85rem; z-index: 999; box-shadow: 0 10px 25px rgba(0,0,0,0.5); width: 240px; line-height: 1.5; pointer-events: none; transform-origin: bottom right; transform: scale(0); opacity: 0; transition: transform 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275), opacity 0.3s ease; }
         #pwa-prompt.show { transform: scale(1); opacity: 1; pointer-events: auto; }
         #pwa-prompt .close-prompt { position: absolute; top: 5px; right: 10px; font-weight: bold; cursor: pointer; color: #888; font-size: 1.2rem; padding: 5px; }
 
-        /* MOBILE LAYOUT */
-        #mobile-header { 
-            display: flex; flex-direction: column; align-items: center; justify-content: center; 
-            height: 22%; width: 100%; z-index: 50; position: relative;
-            padding-top: 10px; box-sizing: border-box;
-            border-bottom: 1px solid rgba(255,255,255,0.1); transition: border-color 0.3s;
-        }
-        #mobile-header.active-fx { border-bottom-color: var(--fx-active-color); }
-
-        #center-col { flex: 1; display: flex; align-items: center; justify-content: center; width: 100%; position: relative; overflow: hidden; }
-
-        #mobile-footer {
-            display: flex; flex-direction: column; align-items: center; justify-content: flex-end;
-            padding-bottom: 15px; width: 100%; z-index: 40; background: linear-gradient(to top, #111 80%, transparent);
-        }
+        #center-col { display: flex; align-items: center; justify-content: center; width: 100%; padding: 10px 0; }
+        #mobile-footer { display: flex; flex-direction: column; align-items: center; justify-content: center; padding-bottom: max(20px, env(safe-area-inset-bottom)); width: 100%; z-index: 40; background: #111; }
 
         #left-col, #right-col { display: none; }
 
-        /* PC LAYOUT */
         @media (min-width: 800px) {
             body { flex-direction: row; justify-content: space-between; padding: 0 40px; box-sizing: border-box; }
-            #mobile-header, #mobile-footer { display: none !important; }
+            #top-nav { position: absolute; width: calc(100% - 80px); left: 40px; top: 20px; padding: 0; background: none; flex-direction: row; justify-content: space-between; align-items: center;}
+            .feed-tabs { display: flex; } 
+            #menu-btn { display: block; } 
+            #feed-overlay { top: 60px; height: 400px; width: 300px; left: 40px; border: 1px solid #333; border-radius: 8px; }
+            #mobile-fx-zone, #mobile-footer { display: none !important; }
             #left-col { display: flex; width: 250px; flex-direction: column; justify-content: center; align-items: flex-start; gap: 20px; height: 100%; z-index: 10; }
             #center-col { flex: 1; height: 100%; }
             #right-col { display: flex; width: 300px; flex-direction: column; align-items: center; justify-content: center; gap: 20px; height: 100%; z-index: 10; }
-            #pc-info-area { margin-bottom: 20px; }
+            #pc-info-area { margin-bottom: 20px; margin-top: 60px; }
             #place-name-pc { font-size: 2rem; letter-spacing: 0.2em; font-weight: 100; margin: 0; text-transform: uppercase; }
             #recorder-name-pc { font-size: 0.8rem; opacity: 0.6; letter-spacing: 0.1em; }
             #pc-controls-container { display: flex; gap: 15px; margin-top: 10px; width: 240px; justify-content: space-between; }
         }
 
-        /* COMMON ELEMENTS */
-        #place-name { margin: 0; font-size: 1.2rem; letter-spacing: 0.15em; font-weight: 300; pointer-events: none; }
-        #recorder-name { margin: 5px 0 0 0; font-size: 0.75rem; opacity: 0.6; pointer-events: none; }
+        #place-name, #recorder-name { display: none; }
 
-        #fx-pad-pc {
-            width: 240px; height: 240px; 
-            border: 1px solid rgba(255,255,255,0.3); border-radius: 4px;
-            position: relative; overflow: hidden; transition: all 0.3s; cursor: crosshair;
-            background: linear-gradient(rgba(255,255,255,0.05) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.05) 1px, transparent 1px);
-            background-size: 24px 24px;
-        }
+        #fx-pad-pc { width: 240px; height: 240px; border: 1px solid rgba(255,255,255,0.3); border-radius: 4px; position: relative; overflow: hidden; transition: all 0.3s; cursor: crosshair; background: linear-gradient(rgba(255,255,255,0.05) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.05) 1px, transparent 1px); background-size: 24px 24px; touch-action: none; }
         #fx-pad-pc::before { content: "Y: FILTER"; position: absolute; top: 10px; left: 10px; font-size: 0.6rem; opacity: 0.3; pointer-events: none; letter-spacing: 0.1em; writing-mode: vertical-rl; }
         #fx-pad-pc::after { content: "X: REVERB"; position: absolute; bottom: 10px; right: 10px; font-size: 0.6rem; opacity: 0.3; pointer-events: none; letter-spacing: 0.1em; }
         #fx-pad-pc.active { box-shadow: 0 0 20px var(--fx-active-color); border-color: var(--fx-active-color); }
         
-        .fx-cursor { 
-            position: absolute; width: 20px; height: 20px; border-radius: 50%; 
-            border: 1px solid rgba(255,255,255,0.8); background: rgba(0, 204, 255, 0.3);
-            box-shadow: 0 0 15px rgba(0, 204, 255, 0.6); pointer-events: none; 
-            transform: translate(-50%, -50%) scale(0); transition: transform 0.1s, opacity 0.1s; opacity: 0; z-index: 100;
-        }
+        .fx-cursor { position: absolute; width: 20px; height: 20px; border-radius: 50%; border: 1px solid rgba(255,255,255,0.8); background: rgba(0, 204, 255, 0.3); box-shadow: 0 0 15px rgba(0, 204, 255, 0.6); pointer-events: none; transform: translate(-50%, -50%) scale(0); transition: transform 0.1s, opacity 0.1s; opacity: 0; z-index: 100; }
         .fx-cursor.active { transform: translate(-50%, -50%) scale(1); opacity: 1; }
 
-        #sampler-wrapper { width: 85vmin; height: 85vmin; max-width: 500px; max-height: 500px; position: relative; opacity: 0; transition: opacity 1s; }
-        #sampler-container { display: grid; grid-template-columns: repeat(4, 1fr); grid-template-rows: repeat(4, 1fr); gap: 1px; width: 100%; height: 100%; }
+        #sampler-wrapper { width: 85vmin; height: 85vmin; max-width: 500px; max-height: 500px; position: relative; opacity: 0; transition: opacity 1s; aspect-ratio: 1 / 1; }
+        #sampler-container { display: grid; grid-template-columns: repeat(4, 1fr); grid-template-rows: repeat(4, 1fr); gap: 1px; width: 100%; height: 100%; aspect-ratio: 1 / 1; }
 
-        /* PADS */
-        .pad { 
-            position: relative; background-color: #222; background-size: 400% 400%; background-repeat: no-repeat; cursor: pointer; 
-            -webkit-tap-highlight-color: transparent; 
-            filter: var(--pad-base); transition: filter 0.5s ease-out, box-shadow 0.5s ease-out; box-shadow: inset 0 0 0 rgba(0,0,0,0); 
+        .pad { position: relative; background-color: #222; background-size: 400% 400%; background-repeat: no-repeat; cursor: pointer; -webkit-tap-highlight-color: transparent; filter: var(--pad-base); transition: filter 0.5s ease-out, box-shadow 0.5s ease-out, border 0.2s; box-shadow: inset 0 0 0 rgba(0,0,0,0); aspect-ratio: 1 / 1; border: 1px solid transparent; 
+            -webkit-user-select: none; user-select: none; -webkit-touch-callout: none; 
         }
         .pad.active { filter: var(--pad-active); transition: filter 0.05s ease-out; z-index: 2; }
         .pad.purifying { filter: var(--pad-dark); z-index: 3; transition: filter 10s ease-in-out, box-shadow 10s ease-in-out; box-shadow: inset 0 0 80px rgba(0,0,0,1); }
-        .pad-label { position: absolute; bottom: 5px; right: 5px; font-size: 0.6rem; opacity: 0.5; font-weight: 100; pointer-events: none; text-shadow: 0 0 2px black; }
+        .pad-label { position: absolute; bottom: 5px; right: 5px; font-size: 0.6rem; opacity: 0.5; font-weight: 100; pointer-events: none; text-shadow: 0 0 2px black; transition: color 0.3s; }
 
-        .control-btn { 
-            border: 1px solid var(--text-color); padding: 8px 20px; font-size: 0.8rem; letter-spacing: 0.1em; 
-            color: var(--text-color); background: transparent; cursor: pointer; transition: all 0.2s; opacity: 0.6; 
-            border-radius: 20px; text-align: center; min-width: 60px;
-        }
+        .mode-edit .pad { border: 1px dashed rgba(255,51,102,0.5); animation: pulse-edit 2s infinite; }
+        .mode-spoid .pad { border: 1px solid rgba(255,170,0,0.5); }
+        .mode-paste .pad { border: 1px dashed rgba(0,255,170,0.5); animation: pulse-paste 2s infinite; }
+        @keyframes pulse-edit { 0%, 100% { border-color: rgba(255,51,102,0.2); } 50% { border-color: rgba(255,51,102,0.8); } }
+        @keyframes pulse-paste { 0%, 100% { border-color: rgba(0,255,170,0.2); } 50% { border-color: rgba(0,255,170,0.8); } }
+
+        .control-btn { border: 1px solid var(--text-color); padding: 8px 25px; font-size: 0.85rem; letter-spacing: 0.1em; color: var(--text-color); background: transparent; cursor: pointer; transition: all 0.2s; opacity: 0.6; border-radius: 20px; text-align: center; min-width: 80px; font-weight: bold; }
         .control-btn.active { background: var(--text-color); color: var(--bg-color); opacity: 1; box-shadow: 0 0 10px rgba(255,255,255,0.3); }
         #fx-btn-pc.active, #fx-btn-mobile.active { background: var(--fx-active-color); border-color: var(--fx-active-color); color: #000; box-shadow: 0 0 15px var(--fx-active-color); }
 
-        /* MENUS */
-        .menu-area-pc { margin-top: 20px; width: 100%; }
-        #mobile-menu-wrapper { width: 100%; display: flex; flex-direction: column; align-items: center; margin-bottom: 15px; }
-        #mobile-cat-menu { display: flex; gap: 10px; margin-bottom: 10px; flex-wrap: wrap; justify-content: center; }
-        #mobile-set-menu { display: flex; gap: 20px; overflow-x: auto; width: 100%; padding: 0 20px; box-sizing: border-box; justify-content: center; -webkit-overflow-scrolling: touch; scrollbar-width: none; }
-        #mobile-set-menu::-webkit-scrollbar { display: none; }
-
-        .category-item { font-size: 0.7rem; letter-spacing: 0.1em; opacity: 0.4; cursor: pointer; padding: 2px 0; border-bottom: 1px solid transparent; }
-        .category-item.active { opacity: 1; border-color: #fff; }
-        .menu-item { cursor: pointer; font-size: 0.9rem; letter-spacing: 0.05em; opacity: 0.4; transition: opacity 0.2s; white-space: nowrap; flex-shrink: 0; }
-        .menu-item.active { opacity: 1; text-shadow: 0 0 5px rgba(255,255,255,0.3); }
-
-        #loading-indicator { position: absolute; font-size: 0.8rem; letter-spacing: 0.2em; opacity: 0.7; animation: blink 1.5s infinite; top: 50%; left: 50%; transform: translate(-50%, -50%); pointer-events: none; }
+        #loading-indicator { position: absolute; font-size: 0.8rem; letter-spacing: 0.2em; opacity: 0.7; animation: blink 1.5s infinite; top: 50%; left: 50%; transform: translate(-50%, -50%); pointer-events: none; z-index: 9999; }
         @keyframes blink { 0%, 100% { opacity: 0.3; } 50% { opacity: 1; } }
     </style>
 </head>
 <body>
     <div id="loading-indicator">SYSTEM BOOT...</div>
 
-    <div id="menu-btn" onclick="openModal()">≡</div>
+    <div id="top-nav">
+        <div class="feed-tabs">
+            <div class="feed-tab active" onclick="switchFeed('main')">MAIN</div>
+            <div class="feed-tab" onclick="switchFeed('follow')">FOLLOW</div>
+            <div class="feed-tab" onclick="switchFeed('gather')">GATHER</div>
+        </div>
+        <div id="menu-btn" onclick="openModal('main-menu-overlay')">≡</div>
+    </div>
 
-    <div id="modal-overlay">
-        <div id="modal-content">
-            <span class="modal-close" onclick="closeModal()">×</span>
-            <div class="modal-section">
+    <div id="mode-banner" onclick="cancelMode()">
+        <span id="mode-banner-text">EDIT MODE</span>
+        <div class="mode-cancel-btn">×</div>
+    </div>
+
+    <div id="feed-overlay"></div>
+
+    <div id="main-menu-overlay" class="modal-overlay" onclick="closeModal('main-menu-overlay')">
+        <div class="modal-content" onclick="event.stopPropagation()">
+            <span class="modal-close" onclick="closeModal('main-menu-overlay')">×</span>
+            <div id="user-profile-info"></div>
+            <div class="modal-section" id="dynamic-menu-container"></div>
+            <div class="modal-section" style="margin-top: 40px;">
                 <h3>HOW TO PLAY</h3>
-                <ul>
-                    <li>16個のパッドをタップして音を奏でます。</li>
-                    <li><b>HOLD:</b> ループ音源の再生を維持します。</li>
-                    <li><b>FX:</b> 画面上部をスワイプすると、音の響き（フィルター＆リバーブ）が変化します。</li>
-                </ul>
+                <p style="font-size: 0.8rem; color: #aaa;">16個のパッドをタップして音を奏でます。<br><b>HOLD:</b> ループ音源の再生を維持します。<br><b>FX:</b> 画面上部をスワイプすると、音の響き（フィルター＆リバーブ）が変化します。</p>
             </div>
-            <div class="modal-section">
-                <h3>SHARE</h3>
-                <p>現在のセットをSNS等で共有できます。</p>
-                <div id="share-btn" class="modal-btn" onclick="copyShareUrl()">URLをコピー</div>
-            </div>
-            <div class="modal-section">
-                <h3>FOR CREATORS</h3>
-                <p>あなただけのオリジナルの音を集めて、新しいセットを作成することができます。</p>
-                <a href="./editor_v4.html" class="modal-btn">Studioを開く (ログイン必須)</a>
-            </div>
-            <p class="modal-hint">※このメニューは右上の「≡」からいつでも見返せます。</p>
         </div>
     </div>
 
-    <div id="inapp-warning">
-        <h2>推奨ブラウザで開いてください</h2>
-        <p>画面サイズや音の不具合を防ぐため、<br>右上のメニューから<b>「Safariで開く」</b><br>または<b>「ブラウザで開く」</b>を選択してください。</p>
-        <div class="control-btn" style="opacity:1;" onclick="dismissInAppWarning()">このまま試す</div>
+    <div id="pad-edit-overlay" class="modal-overlay" onclick="closeModal('pad-edit-overlay')">
+        <div class="modal-content" onclick="event.stopPropagation()">
+            <span class="modal-close" onclick="closeModal('pad-edit-overlay')">×</span>
+            <div class="modal-section">
+                <h3 id="modal-edit-title">EDIT PAD</h3>
+                <div class="form-group" style="margin-top: 15px;">
+                    <label class="btn-file-upload" id="upload-btn-label">
+                        📁 音源ファイルを選択
+                        <input type="file" id="modal-file-input" accept=".mp3, audio/mpeg, .wav, audio/wav, .m4a, audio/mp4, .aac, audio/aac">
+                    </label>
+                    <div id="modal-file-name" style="font-size: 0.7rem; color: #888; margin-top: 5px; word-break: break-all;">No file selected</div>
+                </div>
+                <div class="form-group">
+                    <label>Label</label>
+                    <input type="text" id="modal-edit-label" class="modal-input" placeholder="パッドの表示名">
+                </div>
+                <div class="form-group">
+                    <label>Mode</label>
+                    <select id="modal-edit-mode" class="modal-input">
+                        <option value="gate">Gate (指を離すと止まる)</option>
+                        <option value="oneshot">OneShot (最後まで鳴り切る)</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label class="checkbox-label"><input type="checkbox" id="modal-edit-loop"> Loop Playback</label>
+                    <label class="checkbox-label"><input type="checkbox" id="modal-edit-fadeIn"> Fade In (クリック音防止)</label>
+                    <label class="checkbox-label"><input type="checkbox" id="modal-edit-random"> Random Start (ループ用)</label>
+                </div>
+                <div style="display:flex; flex-direction:column; gap:10px; margin-top:25px;">
+                    <button class="control-btn" style="width:100%; opacity:1; background:#fff; color:#000;" onclick="savePadEdit()">✓ 完了 (Save)</button>
+                    <button class="control-btn" style="width:100%; border-color:var(--danger-color); color:var(--danger-color);" onclick="clearPadEdit()">🗑️ このパッドをクリア</button>
+                </div>
+            </div>
+        </div>
     </div>
 
     <div id="pwa-fab" onclick="togglePwaPrompt()">
@@ -241,78 +271,55 @@
     <div id="pwa-prompt">
         <span class="close-prompt" onclick="closePwaPrompt(event)">×</span>
         <b style="font-size: 1rem; color:#00ccff;">📱 アプリ化してフル機能に</b><br><br>
-        サクサク演奏するために、<br>
-        <span id="pwa-inst-ios" style="display:none;">ブラウザ下部の<b>「共有アイコン」</b><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="vertical-align: middle; margin: 0 2px;"><path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8"/><polyline points="16 6 12 2 8 6"/><line x1="12" y1="2" x2="12" y2="15"/></svg>から<br><b>「ホーム画面に追加」</b></span>
-        <span id="pwa-inst-other" style="display:none;">ブラウザ右上の<b>「メニュー(⋮)」</b>から<br><b>「ホーム画面に追加」</b></span><br>
-        を選択してください。
+        サクサク演奏するために、ブラウザのメニューから<b>「ホーム画面に追加」</b>を選択してください。
     </div>
 
-    <div id="mobile-header">
-        <h1 id="place-name">SOLOSOLA</h1>
-        <p id="recorder-name">Cloud Media</p>
-        <div id="mobile-fx-cursor" class="fx-cursor"></div>
-    </div>
+    <div id="mobile-fx-zone"><div id="mobile-fx-cursor" class="fx-cursor"></div></div>
 
     <div id="left-col">
         <div id="pc-info-area">
             <h1 id="place-name-pc">SOLOSOLA</h1>
             <p id="recorder-name-pc">Cloud Media</p>
         </div>
-        <div class="menu-area-pc">
-            <div id="pc-cat-menu" style="display:flex; gap:15px; flex-wrap:wrap; margin-bottom:10px;"></div>
-            <div id="pc-set-menu" style="display:flex; gap:20px; overflow-x:auto;"></div>
-        </div>
     </div>
 
     <div id="center-col">
-        <div id="sampler-wrapper">
-            <div id="sampler-container"></div>
-        </div>
+        <div id="sampler-wrapper"><div id="sampler-container"></div></div>
     </div>
 
     <div id="right-col">
-        <div id="fx-pad-pc">
-            <div id="pc-fx-cursor" class="fx-cursor"></div>
-        </div>
+        <div id="fx-pad-pc"><div id="pc-fx-cursor" class="fx-cursor"></div></div>
         <div id="pc-controls-container">
-            <div id="hold-btn-pc" class="control-btn" onclick="toggleHoldMode()">HOLD (H)</div>
+            <div id="hold-btn-pc" class="control-btn">HOLD (H)</div>
             <div id="fx-btn-pc" class="control-btn" onclick="toggleFxMode()">FX (Enter)</div>
         </div>
     </div>
 
     <div id="mobile-footer">
-        <div style="display:flex; gap:15px; margin-bottom:20px;">
-            <div id="hold-btn-mobile" class="control-btn" onclick="toggleHoldMode()">HOLD</div>
+        <div style="display:flex; gap:30px;">
+            <div id="hold-btn-mobile" class="control-btn">HOLD</div>
             <div id="fx-btn-mobile" class="control-btn" onclick="toggleFxMode()">FX</div>
-        </div>
-        <div id="mobile-menu-wrapper">
-            <div id="mobile-cat-menu"></div>
-            <div id="mobile-set-menu"></div>
         </div>
     </div>
 
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
-        import { getFirestore, collection, getDocs } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+        import { getAuth, signInWithPopup, GoogleAuthProvider, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
+        import { getFirestore, collection, getDocs, doc, updateDoc, query, where } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+        import { getStorage, ref, uploadBytes, getDownloadURL } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-storage.js";
 
-        const firebaseConfig = {
-            apiKey: "AIzaSyC0yzzu9f6PM0zfnr463jRdsRrXpkqP-YA",
-            authDomain: "solosola-v4.firebaseapp.com",
-            projectId: "solosola-v4",
-            storageBucket: "solosola-v4.firebasestorage.app",
-            messagingSenderId: "937332002715",
-            appId: "1:937332002715:web:17d4933814874b2d7adb3e"
-        };
-
+        const firebaseConfig = { apiKey: "AIzaSyC0yzzu9f6PM0zfnr463jRdsRrXpkqP-YA", authDomain: "solosola-v4.firebaseapp.com", projectId: "solosola-v4", storageBucket: "solosola-v4.firebasestorage.app", messagingSenderId: "937332002715", appId: "1:937332002715:web:17d4933814874b2d7adb3e" };
         const app = initializeApp(firebaseConfig);
+        const auth = getAuth(app);
         const db = getFirestore(app);
+        const storage = getStorage(app);
 
-        // --- GLOBAL VARIABLES ---
-        let SYSTEM_DATA = { sets: {}, categories: {} };
-        let currentCategory = "ALL";
+        let SYSTEM_DATA = { sets: {} };
         let currentSetKey = null;
+        let currentUser = null; 
+        
         let audioContext;
-        const audioBuffers = new Array(16);
+        let audioBuffers = new Array(16);
         const playingNodes = {};
         const pressedKeys = new Set();
         let isHoldMode = false, isFxMode = false;
@@ -320,180 +327,430 @@
         const keyMap = ['1','2','3','4', 'q','w','e','r', 'a','s','d','f', 'z','x','c','v'];
         
         let playCount = 0;
-        let isStandalone = false;
-        let isInAppBrowser = false;
+        let isStandalone = false, isInAppBrowser = false, isFeedOpen = false;
+
+        let appMode = 'PLAY'; 
+        let targetEditPadId = null;
+        let spoidedSampleData = null; 
+        let tempEditingSample = null;
+        
+        const silentWav = "data:audio/wav;base64,UklGRigAAABXQVZFZm10IBIAAAABAAEARKwAAIhYAQACABAAAABkYXRhAgAAAAEA";
+        let stayAliveAudio = new Audio(silentWav);
+        stayAliveAudio.loop = true;
+        stayAliveAudio.volume = 0.01;
+
+        let isAudioEngineInitialized = false;
 
         window.addEventListener('contextmenu', e => e.preventDefault(), { passive: false });
 
-        // --- UI ACTIONS (Modal & Share) ---
-        window.openModal = function() {
-            const overlay = document.getElementById('modal-overlay');
-            overlay.style.display = 'flex';
-            setTimeout(() => overlay.classList.add('show'), 10);
-            localStorage.setItem('tutorialShown', 'true');
+        function initAudioEngine() {
+            if (isAudioEngineInitialized) return;
+            isAudioEngineInitialized = true;
+            if ('audioSession' in navigator) { try { navigator.audioSession.type = 'playback'; } catch(e){} }
+            stayAliveAudio.play().catch(e => { console.log("Stay-alive audio blocked", e); });
+            if ('mediaSession' in navigator) { navigator.mediaSession.playbackState = 'playing'; }
+        }
+
+        function unlockAudioContextMaster(e) {
+            if (!audioContext) initAudioContext();
+            if (audioContext && audioContext.state === 'suspended') audioContext.resume();
+            if (!isAudioEngineInitialized) initAudioEngine(); 
+        }
+
+        ['touchstart', 'touchend', 'mousedown', 'click'].forEach(evt => {
+            document.addEventListener(evt, unlockAudioContextMaster, { capture: true, passive: true });
+        });
+
+        document.addEventListener('visibilitychange', () => {
+            if (document.visibilityState === 'visible') {
+                if (audioContext) {
+                    let lastTime = audioContext.currentTime;
+                    setTimeout(() => {
+                        if (audioContext.currentTime === lastTime) {
+                            console.log("AudioContext Zombie detected! Rebuilding...");
+                            audioContext.close().then(() => {
+                                audioContext = new (window.AudioContext || window.webkitAudioContext)();
+                                setupMasterFX();
+                                preloadAllSamples(); 
+                            });
+                        } else if (audioContext.state === 'suspended') {
+                            audioContext.resume();
+                        }
+                    }, 50);
+                }
+                if ('mediaSession' in navigator) navigator.mediaSession.playbackState = 'playing';
+                stayAliveAudio.play().catch(e=>{});
+            }
+        });
+
+        onAuthStateChanged(auth, (user) => { currentUser = user; renderDynamicMenu(); });
+        window.handleGoogleLogin = function() { signInWithPopup(auth, new GoogleAuthProvider()).catch(err => { alert("Login Failed: " + err.message); }); };
+        window.handleGoogleLogout = function() { signOut(auth).then(() => { alert("ログアウトしました"); closeModal('main-menu-overlay'); cancelMode(); }); };
+
+        // 【FIX】FXゾーンの貫通防止ユーティリティ
+        function toggleFxZoneInteraction(enable) {
+            const fxZone = document.getElementById('mobile-fx-zone');
+            if (fxZone) fxZone.style.pointerEvents = enable ? 'auto' : 'none';
+        }
+
+        function renderDynamicMenu() {
+            const container = document.getElementById('dynamic-menu-container');
+            const profileInfo = document.getElementById('user-profile-info');
+            container.innerHTML = '<h3>MENU</h3>';
+            
+            const currentSetData = SYSTEM_DATA.sets[currentSetKey];
+            const isMySet = currentUser && currentSetData && currentSetData.ownerId === currentUser.uid;
+
+            if (currentUser) {
+                profileInfo.innerText = `Logged in as: ${currentUser.email}`;
+            } else {
+                profileInfo.innerText = '';
+                container.innerHTML += `
+                    <div class="modal-menu-item google-login" onclick="handleGoogleLogin()"><span style="color:#4285F4;">G</span> Login with Google</div>
+                    <div class="modal-menu-item disabled" onclick="alert('ログインすると、自分の音を追加したり編集できるようになります。')"><span>🔒 音を追加・編集 (Lite Edit)</span></div>
+                    <div class="modal-menu-item disabled" onclick="alert('ログインすると、他人の音を自分のセットにコピーできるようになります。')"><span>🔒 このセットをコピー (Resample)</span></div>
+                `;
+            }
+
+            if (isMySet) {
+                container.innerHTML += `<div class="modal-menu-item" onclick="enterMode('EDIT')"><span>音を追加・編集 (Lite Edit)</span><span class="icon">▶</span></div>`;
+            } else if (currentUser && currentSetData) {
+                container.innerHTML += `<div class="modal-menu-item pro" onclick="enterMode('SPOID')"><span>このセットから音をコピー (Resample)</span><span class="icon">▶</span></div>`;
+            }
+
+            container.innerHTML += `
+                <div class="modal-menu-item" onclick="copyShareUrl()"><span id="share-btn-text">この音をシェア (Share)</span><span class="icon">▶</span></div>
+                <a href="./editor_v4.html" target="_blank" rel="noopener noreferrer" class="modal-menu-item pro"><span>高度な編集 (Studio Proへ)</span><span class="icon">↗</span></a>
+            `;
+            if (currentUser) { container.innerHTML += `<div class="modal-menu-item danger" onclick="handleGoogleLogout()" style="margin-top:20px;"><span>ログアウト</span><span class="icon">▶</span></div>`; }
+        }
+
+        window.enterMode = function(mode) {
+            appMode = mode;
+            closeModal('main-menu-overlay');
+            const wrapper = document.getElementById('sampler-wrapper');
+            const banner = document.getElementById('mode-banner');
+            const bannerText = document.getElementById('mode-banner-text');
+
+            wrapper.className = ''; banner.className = '';
+            if (mode === 'EDIT') { wrapper.classList.add('mode-edit'); banner.classList.add('show', 'edit'); bannerText.innerText = 'EDIT: 編集するパッドをタップ'; } 
+            else if (mode === 'SPOID') { wrapper.classList.add('mode-spoid'); banner.classList.add('show', 'spoid'); bannerText.innerText = 'SPOID: コピーする音をタップ'; } 
+            else if (mode === 'PASTE') { wrapper.classList.add('mode-paste'); banner.classList.add('show', 'paste'); bannerText.innerText = 'PASTE: 上書きするパッドをタップ'; }
         };
 
-        window.closeModal = function() {
-            const overlay = document.getElementById('modal-overlay');
-            overlay.classList.remove('show');
-            setTimeout(() => overlay.style.display = 'none', 300);
+        window.cancelMode = function() {
+            appMode = 'PLAY'; targetEditPadId = null; spoidedSampleData = null; tempEditingSample = null;
+            document.getElementById('sampler-wrapper').className = '';
+            document.getElementById('mode-banner').className = '';
         };
 
-        window.copyShareUrl = function() {
-            const url = window.location.href;
-            navigator.clipboard.writeText(url).then(() => {
-                const btn = document.getElementById('share-btn');
-                const originalText = btn.innerText;
-                btn.innerText = "URL COPIED!";
-                btn.style.background = "var(--success-color)";
-                btn.style.color = "#000";
-                setTimeout(() => {
-                    btn.innerText = originalText;
-                    btn.style.background = "#333";
-                    btn.style.color = "#fff";
-                }, 2000);
+        async function processModeClick(id) {
+            if (appMode === 'EDIT') {
+                targetEditPadId = id; openPadEditModal(id); return true;
+            }
+            if (appMode === 'SPOID') {
+                const sampleData = SYSTEM_DATA.sets[currentSetKey].samples.find(s => s.id == id);
+                if (!sampleData || !sampleData.url) { alert("このパッドには音がありません。"); return true; }
+                spoidedSampleData = JSON.parse(JSON.stringify(sampleData));
+                triggerSample(id); 
+                alert("音をコピーしました。\nペースト先の自分のセットを選択してください。");
+                renderMySetsFeed();
+                document.getElementById('feed-overlay').classList.add('show');
+                isFeedOpen = true;
+                toggleFxZoneInteraction(false);
+                return true;
+            }
+            if (appMode === 'PASTE') {
+                if (!spoidedSampleData) { cancelMode(); return true; }
+                if (confirm(`このパッドに音を上書きペーストしますか？`)) {
+                    document.getElementById('loading-indicator').style.display = 'block';
+                    document.getElementById('loading-indicator').innerText = 'UPDATING DATABASE...';
+                    try {
+                        const currentSetData = SYSTEM_DATA.sets[currentSetKey];
+                        const newSamples = [...currentSetData.samples];
+                        const index = newSamples.findIndex(s => s.id == id);
+                        spoidedSampleData.id = parseInt(id);
+                        if (index !== -1) newSamples[index] = spoidedSampleData; else newSamples.push(spoidedSampleData);
+                        await updateDoc(doc(db, "sets", currentSetKey), { samples: newSamples });
+                        SYSTEM_DATA.sets[currentSetKey].samples = newSamples;
+                        await preloadSingleSample(spoidedSampleData);
+                        renderPads(SYSTEM_DATA.sets[currentSetKey]);
+                        cancelMode();
+                    } catch (e) { alert("エラーが発生しました: " + e.message); } 
+                    finally { document.getElementById('loading-indicator').style.display = 'none'; }
+                }
+                return true;
+            }
+            return false;
+        }
+
+        function openPadEditModal(id) {
+            const currentSetData = SYSTEM_DATA.sets[currentSetKey];
+            const sample = currentSetData.samples.find(s => s.id == id) || { id: parseInt(id), mode: 'gate', loop: false, url: "", label: "" };
+            
+            tempEditingSample = JSON.parse(JSON.stringify(sample));
+            document.getElementById('modal-edit-title').innerText = `EDIT PAD ${id}`;
+            document.getElementById('modal-edit-label').value = tempEditingSample.label || '';
+            document.getElementById('modal-edit-mode').value = tempEditingSample.mode || 'gate';
+            document.getElementById('modal-edit-loop').checked = !!tempEditingSample.loop;
+            document.getElementById('modal-edit-fadeIn').checked = !!tempEditingSample.fadeIn;
+            document.getElementById('modal-edit-random').checked = !!tempEditingSample.randomStart;
+            
+            document.getElementById('modal-file-name').innerText = tempEditingSample.url ? "✅ 音源設定済み" : "No file selected";
+            document.getElementById('modal-file-input').value = '';
+            openModal('pad-edit-overlay');
+        }
+
+        async function convertToMP3Blob(file) {
+            return new Promise(async (resolve, reject) => {
+                try {
+                    checkAudioContext(); if (!audioContext) initAudioContext();
+                    const arrayBuffer = await file.arrayBuffer();
+                    const audioBuf = await audioContext.decodeAudioData(arrayBuffer);
+                    const channels = audioBuf.numberOfChannels;
+                    const sampleRate = audioBuf.sampleRate;
+                    const mp3encoder = new window.lamejs.Mp3Encoder(channels, sampleRate, 128); 
+                    const mp3Data = [];
+                    const sampleBlockSize = 1152;
+                    const left = audioBuf.getChannelData(0);
+                    const right = channels > 1 ? audioBuf.getChannelData(1) : left;
+
+                    const leftInt16 = new Int16Array(left.length);
+                    const rightInt16 = new Int16Array(right.length);
+                    for (let i = 0; i < left.length; i++) {
+                        leftInt16[i] = Math.max(-32768, Math.min(32767, left[i] * 32768));
+                        if (channels > 1) { rightInt16[i] = Math.max(-32768, Math.min(32767, right[i] * 32768)); }
+                    }
+                    for (let i = 0; i < leftInt16.length; i += sampleBlockSize) {
+                        const leftChunk = leftInt16.subarray(i, i + sampleBlockSize);
+                        let mp3buf;
+                        if (channels > 1) { const rightChunk = rightInt16.subarray(i, i + sampleBlockSize); mp3buf = mp3encoder.encodeBuffer(leftChunk, rightChunk); } 
+                        else { mp3buf = mp3encoder.encodeBuffer(leftChunk); }
+                        if (mp3buf.length > 0) mp3Data.push(mp3buf);
+                    }
+                    const mp3buf = mp3encoder.flush();
+                    if (mp3buf.length > 0) mp3Data.push(mp3buf);
+                    resolve(new Blob(mp3Data, { type: 'audio/mp3' }));
+                } catch (e) { reject(e); }
             });
+        }
+
+        document.getElementById('modal-file-input').addEventListener('change', async (e) => {
+            const file = e.target.files[0];
+            if (!file || targetEditPadId === null || !currentUser) return;
+            const uploadBtnLabel = document.getElementById('upload-btn-label');
+            const originalText = uploadBtnLabel.innerHTML;
+            uploadBtnLabel.innerHTML = '⚙️ Converting & Uploading...';
+            uploadBtnLabel.style.pointerEvents = 'none';
+
+            try {
+                const mp3Blob = await convertToMP3Blob(file);
+                const originalNameBase = file.name.replace(/\.[^/.]+$/, "");
+                const newFileName = `${originalNameBase}.mp3`;
+
+                const storageRef = ref(storage, `users/${currentUser.uid}/${currentSetKey}/${Date.now()}_${newFileName}`);
+                await uploadBytes(storageRef, mp3Blob);
+                const downloadURL = await getDownloadURL(storageRef);
+
+                tempEditingSample.url = downloadURL;
+                document.getElementById('modal-file-name').innerText = newFileName + " (Converted)";
+                const cleanName = originalNameBase.substring(0, 15);
+                document.getElementById('modal-edit-label').value = cleanName;
+                tempEditingSample.label = cleanName;
+            } catch (error) { alert("ファイルの変換またはアップロードに失敗しました: " + error.message); } 
+            finally { uploadBtnLabel.innerHTML = originalText; uploadBtnLabel.style.pointerEvents = 'auto'; }
+        });
+
+        window.savePadEdit = async function() {
+            if (!tempEditingSample) return;
+            tempEditingSample.label = document.getElementById('modal-edit-label').value;
+            tempEditingSample.mode = document.getElementById('modal-edit-mode').value;
+            tempEditingSample.loop = document.getElementById('modal-edit-loop').checked;
+            tempEditingSample.fadeIn = document.getElementById('modal-edit-fadeIn').checked;
+            tempEditingSample.randomStart = document.getElementById('modal-edit-random').checked;
+
+            document.getElementById('loading-indicator').style.display = 'block';
+            document.getElementById('loading-indicator').innerText = 'SAVING PAD...';
+
+            try {
+                const currentSetData = SYSTEM_DATA.sets[currentSetKey];
+                const newSamples = [...currentSetData.samples];
+                const index = newSamples.findIndex(s => s.id == targetEditPadId);
+
+                if (index !== -1) newSamples[index] = tempEditingSample; else newSamples.push(tempEditingSample);
+                await updateDoc(doc(db, "sets", currentSetKey), { samples: newSamples });
+                SYSTEM_DATA.sets[currentSetKey].samples = newSamples;
+                await preloadSingleSample(tempEditingSample);
+                renderPads(SYSTEM_DATA.sets[currentSetKey]);
+                closeModal('pad-edit-overlay');
+            } catch (error) { alert("保存エラー: " + error.message); } 
+            finally { document.getElementById('loading-indicator').style.display = 'none'; }
         };
 
-        // --- ENVIRONMENT DETECTION LOGIC ---
+        window.clearPadEdit = async function() {
+            if (!confirm("このパッドの音源を消去しますか？")) return;
+            tempEditingSample.url = ""; tempEditingSample.label = "";
+            document.getElementById('modal-edit-label').value = "";
+            document.getElementById('modal-file-name').innerText = "No file selected";
+            await savePadEdit();
+        };
+
+        async function preloadSingleSample(sample) {
+            if (!sample || !sample.url) return;
+            try {
+                const response = await fetch(sample.url);
+                const buf = await response.arrayBuffer();
+                audioBuffers[sample.id] = await audioContext.decodeAudioData(buf);
+            } catch (e) { console.error("Audio Decode Error", e); }
+        }
+
+        window.openModal = function(id) { 
+            const overlay = document.getElementById(id); 
+            overlay.style.display = 'flex'; setTimeout(() => overlay.classList.add('show'), 10); 
+            if(id === 'main-menu-overlay') localStorage.setItem('tutorialShown', 'true'); 
+            toggleFxZoneInteraction(false); 
+        };
+        window.closeModal = function(id) { 
+            const overlay = document.getElementById(id); 
+            overlay.classList.remove('show'); setTimeout(() => overlay.style.display = 'none', 300); 
+            if(!isFeedOpen) toggleFxZoneInteraction(true); 
+        };
+        window.copyShareUrl = function() { navigator.clipboard.writeText(window.location.href).then(() => { const textSpan = document.getElementById('share-btn-text'); const originalText = textSpan.innerText; textSpan.innerText = "COPIED!"; textSpan.style.color = "var(--success-color)"; setTimeout(() => { textSpan.innerText = originalText; textSpan.style.color = "#fff"; }, 2000); }); };
+
         window.addEventListener('DOMContentLoaded', () => {
             isStandalone = window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone;
             const ua = navigator.userAgent || navigator.vendor || window.opera;
             const isIos = /iphone|ipad|ipod/.test(ua.toLowerCase());
             isInAppBrowser = (ua.indexOf('FBAN') > -1) || (ua.indexOf('FBAV') > -1) || (ua.indexOf('Instagram') > -1) || (ua.indexOf('Line') > -1) || (ua.indexOf('Twitter') > -1);
 
-            if (isInAppBrowser && !isStandalone) {
-                document.getElementById('inapp-warning').style.display = 'flex';
-            } else {
-                checkAndShowTutorial();
-            }
+            if (isInAppBrowser && !isStandalone) document.getElementById('inapp-warning').style.display = 'flex';
+            else if (!localStorage.getItem('tutorialShown')) setTimeout(() => openModal('main-menu-overlay'), 600); 
 
-            if (!isStandalone && !isInAppBrowser) {
-                document.getElementById('pwa-fab').style.display = 'flex';
-                if (isIos) document.getElementById('pwa-inst-ios').style.display = 'inline';
-                else document.getElementById('pwa-inst-other').style.display = 'inline';
-            }
+            if (isStandalone) { document.getElementById('pwa-fab').style.display = 'none'; document.getElementById('pwa-prompt').style.display = 'none'; } 
+            else if (!isInAppBrowser) { document.getElementById('pwa-fab').style.display = 'flex'; }
+
+            setupHoldButtons(); 
         });
 
-        window.dismissInAppWarning = function() {
-            document.getElementById('inapp-warning').style.display = 'none';
-            checkAndShowTutorial(); 
-        };
-
-        function checkAndShowTutorial() {
-            if (!localStorage.getItem('tutorialShown')) {
-                setTimeout(() => { openModal(); }, 600); 
-            }
-        }
-
         window.togglePwaPrompt = function() { document.getElementById('pwa-prompt').classList.toggle('show'); };
-        window.closePwaPrompt = function(e) {
-            e.stopPropagation(); 
-            document.getElementById('pwa-prompt').classList.remove('show');
-            localStorage.setItem('pwaPromptDismissed', 'true');
-        };
+        window.closePwaPrompt = function(e) { e.stopPropagation(); document.getElementById('pwa-prompt').classList.remove('show'); localStorage.setItem('pwaPromptDismissed', 'true'); };
 
-        // --- LOAD DATA ---
         window.addEventListener('DOMContentLoaded', async () => { await loadCloudData(); });
 
         async function loadCloudData() {
             try {
-                const querySnapshot = await getDocs(collection(db, "sets"));
+                const urlParams = new URLSearchParams(window.location.search);
+                const targetUserId = urlParams.get('u');
+                const targetSetId = urlParams.get('set');
+
+                let q;
+                if (targetUserId) q = query(collection(db, "sets"), where("ownerId", "==", targetUserId));
+                else q = collection(db, "sets");
+
+                const querySnapshot = await getDocs(q);
+                let defaultSetId = null;
+                let mainSetId = null;
+                
                 if (!querySnapshot.empty) {
-                    let cats = { "ALL": [] };
                     querySnapshot.forEach((doc) => {
                         const data = doc.data();
                         SYSTEM_DATA.sets[doc.id] = data;
-                        const tag = data.tag || "Others";
-                        if (!cats[tag]) cats[tag] = [];
-                        cats[tag].push(doc.id);
-                        cats["ALL"].push(doc.id);
+                        if (!defaultSetId) defaultSetId = doc.id;
+                        if (data.isMain === true) mainSetId = doc.id; 
                     });
-                    SYSTEM_DATA.categories = cats;
 
-                    const targetSet = new URLSearchParams(window.location.search).get('set');
-                    if (targetSet && SYSTEM_DATA.sets[targetSet]) {
-                        currentCategory = SYSTEM_DATA.sets[targetSet].tag || "Others";
-                        selectCategory(currentCategory);
-                        changeSamplerSet(targetSet);
-                    } else {
-                        selectCategory("ALL");
-                        if (cats["ALL"].length > 0) changeSamplerSet(cats["ALL"][0]);
-                    }
+                    if (targetSetId && SYSTEM_DATA.sets[targetSetId]) changeSamplerSet(targetSetId);
+                    else if (targetUserId && mainSetId) changeSamplerSet(mainSetId);
+                    else if (defaultSetId) changeSamplerSet(defaultSetId);
                 }
-            } catch (error) {} 
-            finally { document.getElementById('loading-indicator').style.display = 'none'; }
+            } catch (error) { console.error(error); } 
+            finally { document.getElementById('loading-indicator').style.display = 'none'; renderDynamicMenu(); }
         }
 
-        // --- UI MENUS ---
-        function selectCategory(catId) { 
-            currentCategory = catId; 
-            const catSetList = SYSTEM_DATA.categories[catId] || [];
+        window.switchFeed = function(feedType) {
+            const overlay = document.getElementById('feed-overlay');
+            const tabs = document.querySelectorAll('.feed-tab');
+            const targetTab = Array.from(tabs).find(t => t.innerText.toLowerCase() === feedType);
             
-            const fill = (catEl, setEl) => {
-                if(!catEl) return;
-                catEl.innerHTML = ''; setEl.innerHTML = '';
-                
-                Object.keys(SYSTEM_DATA.categories).forEach(cName => {
-                    const el = document.createElement('div'); 
-                    el.className = `category-item ${cName === currentCategory ? 'active' : ''}`;
-                    el.textContent = cName; 
-                    el.onclick = () => selectCategory(cName);
-                    catEl.appendChild(el);
-                });
+            if (targetTab && targetTab.classList.contains('active') && isFeedOpen) {
+                overlay.classList.remove('show'); isFeedOpen = false; toggleFxZoneInteraction(true); return;
+            }
+            tabs.forEach(el => el.classList.remove('active'));
+            if(targetTab) targetTab.classList.add('active');
 
-                catSetList.forEach(setId => {
-                    const sData = SYSTEM_DATA.sets[setId]; if(!sData) return;
-                    const el = document.createElement('div'); 
-                    el.className = `menu-item ${setId === currentSetKey ? 'active' : ''}`;
-                    el.textContent = sData.name; 
-                    el.onclick = () => changeSamplerSet(setId);
-                    setEl.appendChild(el);
-                });
-            };
-            
-            fill(document.getElementById('pc-cat-menu'), document.getElementById('pc-set-menu'));
-            fill(document.getElementById('mobile-cat-menu'), document.getElementById('mobile-set-menu'));
-            
-            if (catSetList.length > 0 && !catSetList.includes(currentSetKey)) changeSamplerSet(catSetList[0]); 
+            if (feedType === 'main') { renderFeedList(); overlay.classList.add('show'); isFeedOpen = true; toggleFxZoneInteraction(false); } 
+            else { overlay.innerHTML = `<div style="padding:40px 20px; color:#888; text-align:center; font-weight:300;">${feedType.toUpperCase()} feed coming in Phase 2.2</div>`; overlay.classList.add('show'); isFeedOpen = true; toggleFxZoneInteraction(false); }
+        };
+
+        function renderFeedList() {
+            const container = document.getElementById('feed-overlay');
+            container.innerHTML = '';
+            Object.keys(SYSTEM_DATA.sets).forEach(key => {
+                const s = SYSTEM_DATA.sets[key];
+                const el = document.createElement('div');
+                el.className = `feed-list-item ${key === currentSetKey ? 'active' : ''}`;
+                const mainBadge = s.isMain ? `<span class="badge-main">MAIN</span>` : '';
+                el.innerHTML = `<div class="feed-list-title">${s.name} ${mainBadge}</div><div class="feed-list-sub">by ${s.recorder || 'Unknown'}</div>`;
+                el.onclick = () => { changeSamplerSet(key); document.getElementById('feed-overlay').classList.remove('show'); isFeedOpen = false; toggleFxZoneInteraction(true); };
+                container.appendChild(el);
+            });
+        }
+
+        function renderMySetsFeed() {
+            const container = document.getElementById('feed-overlay');
+            container.innerHTML = '<div style="padding: 20px; color:#00ffaa; font-weight:bold; letter-spacing:0.1em; border-bottom: 1px solid #333;">ペースト先のセットを選択</div>';
+            Object.keys(SYSTEM_DATA.sets).forEach(key => {
+                const s = SYSTEM_DATA.sets[key];
+                if (currentUser && s.ownerId === currentUser.uid) { 
+                    const el = document.createElement('div'); el.className = `feed-list-item`;
+                    const mainBadge = s.isMain ? `<span class="badge-main">MAIN</span>` : '';
+                    el.innerHTML = `<div class="feed-list-title">${s.name} ${mainBadge}</div>`;
+                    el.onclick = async () => { 
+                        document.getElementById('feed-overlay').classList.remove('show'); isFeedOpen = false; toggleFxZoneInteraction(true); 
+                        await changeSamplerSet(key); 
+                        enterMode('PASTE'); 
+                    };
+                    container.appendChild(el);
+                }
+            });
         }
 
         window.changeSamplerSet = async function(setKey) { 
             if (!SYSTEM_DATA.sets[setKey]) return; 
             if (!audioContext) initAudioContext(); 
-            stopAllSounds(true); 
+            stopAllSounds(true, true); 
             currentSetKey = setKey; 
             const newData = SYSTEM_DATA.sets[setKey]; 
             
-            const p1 = document.getElementById('place-name'); if(p1) p1.textContent = newData.name;
             const p2 = document.getElementById('place-name-pc'); if(p2) p2.textContent = newData.name;
-            const r1 = document.getElementById('recorder-name'); if(r1) r1.textContent = newData.recorder;
             const r2 = document.getElementById('recorder-name-pc'); if(r2) r2.textContent = newData.recorder;
 
-            const newUrl = window.location.protocol + "//" + window.location.host + window.location.pathname + '?set=' + setKey;
+            let newUrl = window.location.protocol + "//" + window.location.host + window.location.pathname;
+            if (newData.ownerId) newUrl += '?u=' + newData.ownerId + '&set=' + setKey;
+            else newUrl += '?set=' + setKey;
             window.history.pushState({path:newUrl}, '', newUrl);
 
+            // 【FIX】空パッドバグ対策: バッファを一度完全にパージする
+            audioBuffers = new Array(16);
+            
             renderPads(newData); 
-            selectCategory(currentCategory); 
             document.getElementById('sampler-wrapper').style.opacity = 0.5;
             await preloadAllSamples(); 
             document.getElementById('sampler-wrapper').style.opacity = 1;
-        };
+            renderDynamicMenu();
+        }
 
-        // --- PADS & AUDIO ENGINE ---
         function renderPads(setData) { 
             const container = document.getElementById('sampler-container'); container.innerHTML = ''; 
             for (let i = 0; i < 16; i++) { 
                 const sample = setData.samples.find(s => s.id === i) || { id: i, label: "" };
                 const pad = document.createElement('div'); pad.className = 'pad'; pad.id = `pad-${i}`; 
                 pad.dataset.id = i; pad.dataset.key = keyMap[i]; 
-                
                 if(setData.image) {
                     const col = i % 4; const row = Math.floor(i / 4); 
                     pad.style.backgroundImage = `url('${setData.image}')`; 
                     pad.style.backgroundPosition = `${col*(100/3)}% ${row*(100/3)}%`; 
                 }
-                
                 const label = document.createElement('span'); label.className = 'pad-label'; label.textContent = sample.label; 
                 pad.appendChild(label); attachEvents(pad); container.appendChild(pad); 
             } 
@@ -514,183 +771,166 @@
         }
 
         function initAudioContext() { 
-            if (audioContext) return; 
-            try { audioContext = new (window.AudioContext || window.webkitAudioContext)(); setupMasterFX(); } 
-            catch (e) {} 
+            try { audioContext = new (window.AudioContext || window.webkitAudioContext)(); setupMasterFX(); } catch (e) {} 
         }
-        
-        function checkAudioContext() { if (audioContext && audioContext.state === 'suspended') audioContext.resume(); }
-        document.addEventListener('touchstart', checkAudioContext, {passive:true}); document.addEventListener('mousedown', checkAudioContext);
 
         function setupMasterFX() { 
-            masterFilterNode = audioContext.createBiquadFilter(); 
-            masterFilterNode.type = 'lowpass'; masterFilterNode.frequency.value = 20000; masterFilterNode.Q.value = 1; 
+            masterFilterNode = audioContext.createBiquadFilter(); masterFilterNode.type = 'lowpass'; masterFilterNode.frequency.value = 20000; masterFilterNode.Q.value = 1; 
             masterReverbNode = audioContext.createConvolver(); masterReverbNode.buffer = createReverbBuffer(2.0); 
             masterDryGain = audioContext.createGain(); masterDryGain.gain.value = 1.0; 
             masterReverbGain = audioContext.createGain(); masterReverbGain.gain.value = 0.0; 
             masterCompressor = audioContext.createDynamicsCompressor();
             masterCompressor.threshold.value = -10; masterCompressor.knee.value = 30; masterCompressor.ratio.value = 12; masterCompressor.attack.value = 0.003; masterCompressor.release.value = 0.25;
-
             masterFilterNode.connect(masterDryGain); masterFilterNode.connect(masterReverbNode); 
-            masterReverbNode.connect(masterReverbGain); 
-            masterDryGain.connect(masterCompressor); masterReverbGain.connect(masterCompressor); 
+            masterReverbNode.connect(masterReverbGain); masterDryGain.connect(masterCompressor); masterReverbGain.connect(masterCompressor); 
             masterCompressor.connect(audioContext.destination); 
         }
 
         function createReverbBuffer(duration) { 
-            const sampleRate = audioContext.sampleRate; const length = sampleRate * duration; 
-            const impulse = audioContext.createBuffer(2, length, sampleRate); 
+            const sampleRate = audioContext.sampleRate; const length = sampleRate * duration; const impulse = audioContext.createBuffer(2, length, sampleRate); 
             for (let i = 0; i < length; i++) { 
-                const decay = Math.pow(1 - i / length, 2.0); 
-                impulse.getChannelData(0)[i] = (Math.random() * 2 - 1) * decay; 
-                impulse.getChannelData(1)[i] = (Math.random() * 2 - 1) * decay; 
+                const decay = Math.pow(1 - i / length, 2.0); impulse.getChannelData(0)[i] = (Math.random() * 2 - 1) * decay; impulse.getChannelData(1)[i] = (Math.random() * 2 - 1) * decay; 
             } return impulse; 
         }
 
-        // [CRITICAL FIX] 音声トリガー論理の再構築
         function triggerSample(id) { 
-            checkAudioContext(); if (!audioContext) initAudioContext();
             const sampleData = SYSTEM_DATA.sets[currentSetKey].samples.find(s => s.id == id); 
             const buffer = audioBuffers[parseInt(id)]; 
-            if (!buffer || !sampleData) return false; 
-
+            
+            // 【FIX】空パッドタップ時のUIフィードバック
+            if (!buffer || !sampleData || !sampleData.url) { 
+                const pad = document.getElementById(`pad-${id}`);
+                const label = pad.querySelector('.pad-label');
+                if (label) {
+                    const origText = label.innerText;
+                    label.innerText = "EMPTY"; label.style.color = "var(--danger-color)";
+                    setTimeout(() => { label.innerText = origText; label.style.color = ""; }, 500);
+                }
+                return false; 
+            } 
+            
             playCount++;
-            if (playCount === 10 && !isStandalone && !isInAppBrowser && !localStorage.getItem('pwaPromptDismissed')) {
-                document.getElementById('pwa-prompt').classList.add('show');
-            }
-
+            if (playCount === 10 && !isStandalone && !isInAppBrowser && !localStorage.getItem('pwaPromptDismissed')) { document.getElementById('pwa-prompt').classList.add('show'); }
+            
             if (playingNodes[id]) {
                 if (isHoldMode && sampleData.mode === 'gate') { 
-                    // Gateモード かつ HOLD中: タップで停止（トグル）
-                    stopSample(id, true); 
-                    return false; 
-                } else {
-                    // それ以外 (OneShot または HOLDなし): 古い音を止めて再トリガー
+                    stopSample(id, true); return false; 
+                } else { 
                     stopSample(id, true); 
                 }
             }
-
+            
             const source = audioContext.createBufferSource(); source.buffer = buffer; source.loop = sampleData.loop || false; 
             const gainNode = audioContext.createGain(); 
             source.connect(gainNode); gainNode.connect(masterFilterNode || audioContext.destination); 
-
             const now = audioContext.currentTime; gainNode.gain.setValueAtTime(0, now); 
             gainNode.gain.linearRampToValueAtTime(1, now + (sampleData.fadeIn ? 0.05 : 0.005)); 
-
             let startOffset = 0; if (sampleData.loop && sampleData.randomStart && buffer.duration > 1.0) startOffset = Math.random() * 0.5; 
             source.start(0, startOffset); 
-            
             playingNodes[id] = { source: source, gain: gainNode, startTime: now, bufferDuration: buffer.duration }; 
-
             const pad = document.getElementById(`pad-${id}`);
-            clearTimeout(pad.dataset.purifyTimer); // 開始時はタイマーを必ずリセット
-            pad.classList.remove('purifying'); pad.style.transition = ""; void pad.offsetWidth; 
-            pad.classList.add('active'); 
-
+            clearTimeout(pad.dataset.purifyTimer); pad.classList.remove('purifying'); pad.style.transition = ""; void pad.offsetWidth; pad.classList.add('active'); 
             source.onended = () => { 
-                if (playingNodes[id] && playingNodes[id].source === source) { 
-                    delete playingNodes[id]; 
-                    pad.classList.remove('active', 'purifying'); pad.style.transition = ""; 
-                } 
+                if (playingNodes[id] && playingNodes[id].source === source) { delete playingNodes[id]; pad.classList.remove('active', 'purifying'); pad.style.transition = ""; } 
             }; 
             return true; 
         }
 
-        // [CRITICAL FIX] 音声停止（リリース）論理の再構築
         function stopSample(id, forceStop = false) { 
             const node = playingNodes[id]; if (!node) return; 
             const pad = document.getElementById(`pad-${id}`); 
             const sampleData = SYSTEM_DATA.sets[currentSetKey].samples.find(s => s.id == id);
             const now = audioContext.currentTime;
-
-            if (!forceStop) {
-                if (isHoldMode && sampleData.mode === 'gate') return; // GateでHOLD中はリリースを無視
-                if (sampleData.mode === 'oneshot') return; // OneShotは常にリリースを無視
-            }
-
-            // ここを通る＝確実に音が止まる
-            clearTimeout(pad.dataset.purifyTimer); // 止まる時はタイマーを破壊（フリーズ防止）
-            pad.classList.remove('active');
             
+            if (!forceStop) { if (isHoldMode) return; if (sampleData.mode === 'oneshot') return; }
+            
+            pad.classList.remove('active'); clearTimeout(pad.dataset.purifyTimer); 
             let releaseTime = 0.3; 
             const pressDuration = now - node.startTime;
             const isPurifying = pad.classList.contains('purifying') || pressDuration > 0.4;
+            if (isPurifying) { releaseTime = 0.5 + Math.pow(pressDuration * 0.8, 1.2); if (releaseTime > 20) releaseTime = 20; }
             
-            if (isPurifying) {
-                releaseTime = 0.5 + Math.pow(pressDuration * 0.8, 1.2); 
-                if (releaseTime > 20) releaseTime = 20; 
-            }
-            
-            try {
-                node.gain.gain.cancelScheduledValues(now); 
-                node.gain.gain.setValueAtTime(node.gain.gain.value, now); 
-                node.gain.gain.exponentialRampToValueAtTime(0.001, now + releaseTime); 
-                node.source.stop(now + releaseTime); 
-            } catch(e) {}
-            
+            try { node.gain.gain.cancelScheduledValues(now); node.gain.gain.setValueAtTime(node.gain.gain.value, now); node.gain.gain.exponentialRampToValueAtTime(0.001, now + releaseTime); node.source.stop(now + releaseTime); } catch(e) {}
             pad.classList.remove('purifying'); 
-            if (isPurifying) pad.style.transition = `filter ${releaseTime}s ease-out, box-shadow ${releaseTime}s ease-out`;
+            if (isPurifying) pad.style.transition = `filter ${releaseTime}s cubic-bezier(0.1, 0.7, 0.1, 1), box-shadow ${releaseTime}s cubic-bezier(0.1, 0.7, 0.1, 1)`;
             else pad.style.transition = ""; 
-
             delete playingNodes[id]; 
         }
 
-        function stopAllSounds(immediate = false) { 
+        // 【FIX】強制停止の明示的制御 (force引数追加)
+        function stopAllSounds(immediate = false, force = true) { 
             Object.keys(playingNodes).forEach(id => { 
                 if (immediate) { 
                     try { playingNodes[id].source.stop(0); } catch(e){} delete playingNodes[id]; 
-                    const pad = document.getElementById(`pad-${id}`); 
-                    pad.classList.remove('active', 'purifying'); pad.style.transition = "";
-                } else { stopSample(id, true); } 
+                    const pad = document.getElementById(`pad-${id}`); pad.classList.remove('active', 'purifying'); pad.style.transition = "";
+                } else { stopSample(id, force); } 
             }); 
         }
 
         function attachEvents(pad) { 
             let isTouch = false; const id = pad.dataset.id;
-            const start = (e) => { 
-                if (e.type === 'touchstart') isTouch = true;
+            const start = async (e) => { 
+                if (e.type === 'touchstart') {
+                    isTouch = true;
+                    if (e.cancelable) e.preventDefault(); 
+                }
                 if (e.type === 'mousedown' && isTouch) return;
-                const sampleStarted = triggerSample(id); // 再生が開始されたか(トグルOFFでなかったか)を取得
                 
-                const sampleData = SYSTEM_DATA.sets[currentSetKey].samples.find(s => s.id == id);
-                if (sampleStarted && sampleData && sampleData.mode === 'gate') {
-                    pad.dataset.purifyTimer = setTimeout(() => {
-                        if (pad.classList.contains('active') || isHoldMode) {
-                            pad.classList.add('purifying');
-                        }
-                    }, 400); 
+                if (appMode !== 'PLAY') {
+                    await processModeClick(id); return; 
+                }
+                
+                const started = triggerSample(id); 
+                if (started) {
+                    const sampleData = SYSTEM_DATA.sets[currentSetKey].samples.find(s => s.id == id);
+                    if (sampleData && sampleData.mode === 'gate') {
+                        pad.dataset.purifyTimer = setTimeout(() => { if (pad.classList.contains('active') || isHoldMode) pad.classList.add('purifying'); }, 400); 
+                    }
                 }
             }; 
             const end = (e) => { 
+                if (e.type === 'touchend' || e.type === 'touchcancel') {
+                    if (e.cancelable) e.preventDefault();
+                }
                 if (e.type === 'mouseup' && isTouch) return;
+                if (appMode !== 'PLAY') return; 
                 stopSample(id); 
             }; 
             pad.addEventListener('mousedown', start); pad.addEventListener('touchstart', start, {passive:false});
             pad.addEventListener('mouseup', end); pad.addEventListener('mouseleave', end);
-            pad.addEventListener('touchend', end); pad.addEventListener('touchcancel', end);
+            pad.addEventListener('touchend', end, {passive:false}); pad.addEventListener('touchcancel', end, {passive:false});
         }
 
-        // --- CONTROLS ---
+        function setupHoldButtons() {
+            const btns = ['hold-btn-mobile', 'hold-btn-pc'];
+            btns.forEach(id => {
+                const btn = document.getElementById(id); if (!btn) return;
+                btn.addEventListener('touchstart', (e) => { e.preventDefault(); toggleHoldMode(); }, { passive: false });
+                btn.addEventListener('mousedown', (e) => { if (e.button === 0) toggleHoldMode(); }); 
+            });
+        }
+
         window.toggleHoldMode = function() { 
             isHoldMode = !isHoldMode; 
             const b1 = document.getElementById('hold-btn-pc'); if(b1) isHoldMode ? b1.classList.add('active') : b1.classList.remove('active');
             const b2 = document.getElementById('hold-btn-mobile'); if(b2) isHoldMode ? b2.classList.add('active') : b2.classList.remove('active');
-            if (!isHoldMode) stopAllSounds(false); 
+            // 【FIX】HOLD解除時はGATEサンプルのみ停止命令を送る (force引数をfalseに)
+            if (!isHoldMode) stopAllSounds(false, false); 
         };
 
         window.toggleFxMode = function() { 
             isFxMode = !isFxMode; 
-            const els = ['fx-btn-pc', 'fx-pad-pc', 'pc-fx-cursor', 'fx-btn-mobile', 'mobile-header', 'mobile-fx-cursor'];
+            const els = ['fx-btn-pc', 'fx-pad-pc', 'pc-fx-cursor', 'fx-btn-mobile', 'mobile-fx-zone', 'mobile-fx-cursor'];
             els.forEach(id => {
                 const el = document.getElementById(id);
                 if(el) isFxMode ? el.classList.add('active') : el.classList.remove('active');
-                if(id === 'mobile-header' && isFxMode) el.classList.add('active-fx');
-                if(id === 'mobile-header' && !isFxMode) el.classList.remove('active-fx');
+                if(id === 'mobile-fx-zone' && isFxMode) el.classList.add('active-fx');
+                if(id === 'mobile-fx-zone' && !isFxMode) el.classList.remove('active-fx');
             });
         };
 
         window.addEventListener('keydown', e => {
-            if (e.metaKey||e.ctrlKey) return;
+            if (e.metaKey||e.ctrlKey || appMode !== 'PLAY') return; 
             const k = e.key.toLowerCase();
             if (k === 'h') { toggleHoldMode(); return; }
             if (k === 'enter') { toggleFxMode(); return; }
@@ -706,7 +946,7 @@
         function setupFx(zoneId, cursorId) {
             const zone = document.getElementById(zoneId); const cursor = document.getElementById(cursorId);
             if(!zone) return;
-
+            const startFxInteraction = () => { if (!isFxMode) toggleFxMode(); };
             const move = (cx, cy) => {
                 if(!isFxMode) return;
                 const rect = zone.getBoundingClientRect();
@@ -715,19 +955,16 @@
                 cursor.style.left = x*100 + '%'; cursor.style.top = y*100 + '%';
                 cursor.classList.add('active'); updateFxParams(x, y); 
             };
-            
-            zone.addEventListener('mousemove', e => { if(e.buttons>0) move(e.clientX, e.clientY); });
-            zone.addEventListener('touchmove', e => { 
-                e.preventDefault(); 
-                for (let i=0; i < e.touches.length; i++) {
-                    const t = e.touches[i]; const rect = zone.getBoundingClientRect();
-                    if (t.clientX >= rect.left && t.clientX <= rect.right && t.clientY >= rect.top && t.clientY <= rect.bottom) {
-                        move(t.clientX, t.clientY); break; 
-                    }
-                }
-            }, {passive:false});
+
+            let isPointerDown = false;
+            zone.addEventListener('pointerdown', e => {
+                isPointerDown = true; startFxInteraction(); zone.setPointerCapture(e.pointerId); move(e.clientX, e.clientY);
+            });
+            zone.addEventListener('pointermove', e => { if (isPointerDown) move(e.clientX, e.clientY); });
+            zone.addEventListener('pointerup', e => { isPointerDown = false; zone.releasePointerCapture(e.pointerId); });
+            zone.addEventListener('pointercancel', e => { isPointerDown = false; });
         }
-        setupFx('mobile-header', 'mobile-fx-cursor'); setupFx('fx-pad-pc', 'pc-fx-cursor');
+        setupFx('mobile-fx-zone', 'mobile-fx-cursor'); setupFx('fx-pad-pc', 'pc-fx-cursor');
 
         function updateFxParams(x, y) {
             if (!masterFilterNode) return;

@@ -1,0 +1,963 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <title>Solosola | V4.1 Beta</title>
+    <link rel="manifest" href="manifest.json">
+    <link rel="apple-touch-icon" href="icon.png">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="theme-color" content="#111111">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@100;300;700&display=swap" rel="stylesheet">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/lamejs/1.2.1/lame.min.js"></script>
+    <style>
+        /* iOS等のハイライト・ズーム防止 */
+        * { touch-action: manipulation; -webkit-tap-highlight-color: transparent; }
+        
+        :root { 
+            --bg-color: #111111; --text-color: #ffffff; --fx-active-color: #00ccff; 
+            --edit-color: #ff3366; --spoid-color: #ffaa00; --paste-color: #00ffaa; --danger-color: #ff4444; 
+            --pad-base: brightness(1.0) grayscale(0.2); --pad-active: brightness(1.8) grayscale(0); --pad-dark: brightness(0.1) grayscale(1.0) blur(4px); 
+            --pc-panel-width: 340px; 
+            --pc-fx-width: 280px; /* 【統合】2つ目のコードのスマートなサイズ感を適用 */
+        }
+        
+        body { 
+            background-color: var(--bg-color); color: var(--text-color); 
+            font-family: 'Helvetica Neue', 'Noto Sans JP', sans-serif; font-weight: 100; 
+            margin: 0; height: 100vh; height: 100dvh; 
+            padding-bottom: env(safe-area-inset-bottom); padding-left: env(safe-area-inset-left); padding-right: env(safe-area-inset-right);
+            box-sizing: border-box; overflow: hidden; display: flex; flex-direction: column; 
+            -webkit-user-select: none; user-select: none; -webkit-touch-callout: none; touch-action: none; 
+        }
+
+        /* 1. トップナビゲーション */
+        #top-nav {
+            flex: 0 0 auto; width: 100%; display: flex; justify-content: space-between; align-items: stretch;
+            padding: max(env(safe-area-inset-top), 5px) 5px 0 5px; height: calc(max(env(safe-area-inset-top), 5px) + 55px);
+            box-sizing: border-box; z-index: 100; background: var(--bg-color); border-bottom: 1px solid rgba(255,255,255,0.05);
+            position: relative;
+        }
+        
+        .feed-tabs { display: flex; gap: 0; align-items: stretch; flex: 1; height: 100%; }
+        .feed-tab { flex: 1; display: flex; align-items: center; justify-content: center; cursor: pointer; color: #555; transition: color 0.2s; height: 100%; }
+        .feed-tab svg { width: 24px; height: 24px; pointer-events: none; }
+        .feed-tab.active { color: #fff; }
+
+        #menu-btn { flex: 0 0 60px; color: #fff; cursor: pointer; display: flex; align-items: center; justify-content: center; opacity: 0.7; transition: opacity 0.2s; height: 100%; }
+        #menu-btn:active { opacity: 1; }
+        #menu-btn svg { width: 26px; height: 26px; pointer-events: none; }
+
+        /* 2. 可変ヘッダーパネル */
+        #header-panel {
+            flex: 1 1 25%; min-height: 80px; max-height: 40vh; 
+            width: 100%; background: #111; position: relative; z-index: 50;
+            display: flex; flex-direction: column; border-bottom: 1px solid rgba(255,255,255,0.05);
+            /* 【統合】トランジションは後述のメディアクエリで一括管理 */
+            transition: flex 0.4s cubic-bezier(0.2, 0.8, 0.2, 1), height 0.4s cubic-bezier(0.2, 0.8, 0.2, 1); overflow: hidden;
+        }
+
+        .panel-view { display: none; flex-direction: column; width: 100%; height: 100%; }
+        .panel-view.show { display: flex; }
+
+        /* ヘッダーの1行化（タイトル＋横スクロールタグ） */
+        .list-header-row { display: flex; align-items: center; border-bottom: 1px solid #222; width: 100%; background: #111; height: 40px; flex: 0 0 40px; }
+        .list-title { flex: 0 0 auto; font-size: 0.7rem; letter-spacing: 0.15em; color: #888; font-weight: bold; padding: 0 15px; border-right: 1px solid #222; display: flex; align-items: center; height: 100%; }
+        .list-category-tabs { display: flex; gap: 10px; padding: 0 15px; overflow-x: auto; flex: 1; align-items: center; height: 100%; }
+        .list-category-tabs::-webkit-scrollbar { display: none; }
+        .cat-tab { background: #222; padding: 4px 12px; border-radius: 12px; font-size: 0.7rem; white-space: nowrap; cursor: pointer; color: #aaa; transition: all 0.2s; border: 1px solid transparent;}
+        .cat-tab.active { background: #fff; color: #000; font-weight: bold; }
+        
+        .list-container { flex: 1; overflow-y: auto; padding-bottom: 20px; }
+        .feed-list-item { padding: 12px 15px; border-bottom: 1px solid rgba(255,255,255,0.03); display: flex; flex-direction: column; cursor: pointer; transition: background 0.2s; }
+        .feed-list-item:active { background: rgba(255,255,255,0.05); }
+        .feed-list-item.active { border-left: 3px solid var(--fx-active-color); background: rgba(0,204,255,0.05); padding-left: 12px; }
+        .feed-list-title { font-size: 0.95rem; color: #eee; font-weight: 300; display: flex; align-items: center; gap: 8px; }
+        .feed-list-sub { font-size: 0.65rem; color: #666; margin-top: 3px; letter-spacing: 0.05em; }
+
+        /* FX・MIX・EDIT エリア */
+        #mobile-fx-zone { flex: 1; align-items: center; justify-content: center; touch-action: none; position: relative; display: flex; flex-direction: column; }
+        #mobile-fx-zone.active-fx { box-shadow: inset 0 -10px 20px -10px rgba(0,204,255,0.2); background: radial-gradient(circle at center, rgba(0,204,255,0.03) 0%, transparent 70%); }
+        #mobile-fx-zone::before { content: "SWIPE TO FILTER & REVERB"; position: absolute; font-size: 0.6rem; letter-spacing: 0.2em; opacity: 0; color: var(--fx-active-color); transition: opacity 0.3s; pointer-events: none; }
+        #mobile-fx-zone.active-fx::before { opacity: 0.4; }
+        
+        /* カーソルの表示ロジック (scale(1)によるアニメーション) */
+        .fx-cursor { position: absolute; width: 20px; height: 20px; border-radius: 50%; border: 1px solid rgba(255,255,255,0.8); background: rgba(0, 204, 255, 0.3); box-shadow: 0 0 15px rgba(0, 204, 255, 0.6); pointer-events: none; transform: translate(-50%, -50%) scale(0); transition: transform 0.1s, opacity 0.1s; opacity: 0; z-index: 100; }
+        .fx-cursor.active { transform: translate(-50%, -50%) scale(1); opacity: 1; }
+
+        .mockup-center { flex: 1; display: flex; align-items: center; justify-content: center; flex-direction: column; }
+        .mockup-text { font-size: 0.75rem; color: #666; letter-spacing: 0.1em; text-align: center; line-height: 1.6; }
+        .edit-panel-mock { width: 80%; max-width: 300px; background: #222; border-radius: 8px; padding: 15px; display: flex; justify-content: space-between; align-items: center; border: 1px solid #333; }
+        .edit-btn-mock { background: #fff; color: #000; padding: 8px 20px; border-radius: 4px; font-size: 0.75rem; font-weight: bold; cursor: pointer; border:none; }
+
+        /* 3. センターカラム (パッド領域) */
+        #center-col { 
+            flex: 1 1 auto; min-height: 0; min-width: 0; display: flex; align-items: center; justify-content: center; 
+            width: 100%; position: relative; background: var(--bg-color); overflow: hidden; 
+            padding: 5px 10px; /* 【統合】2つ目のコードの余白感を採用 */
+            box-sizing: border-box;
+        }
+        
+        /* 【統合】サイズ管理はJS(ResizeObserver)に任せ、破綻を防ぐ */
+        #sampler-wrapper { 
+            position: relative; opacity: 0; transition: opacity 0.3s; 
+            margin: 0 auto; /* 常に中央寄せ */
+        }
+        #sampler-container { display: grid; grid-template-columns: repeat(4, 1fr); grid-template-rows: repeat(4, 1fr); gap: 1px; width: 100%; height: 100%; }
+
+        .pad { 
+            position: relative; background-color: #222; background-repeat: no-repeat; cursor: pointer; filter: var(--pad-base); 
+            transition: filter 0.5s ease-out, box-shadow 0.5s ease-out; box-shadow: inset 0 0 0 rgba(0,0,0,0); border: 1px solid transparent; 
+            -webkit-user-select: none; user-select: none; -webkit-touch-callout: none; 
+            background-size: 400% 400%; /* V4の完璧なスライス指定を維持 */
+        }
+        .pad.current { z-index: 4; }
+        .pad.active { filter: var(--pad-active); transition: filter 0.05s ease-out; z-index: 2; border-color: transparent; }
+        .pad.purifying { filter: var(--pad-dark); z-index: 3; transition: filter 10s ease-in-out, box-shadow 10s ease-in-out; box-shadow: inset 0 0 80px rgba(0,0,0,1); }
+        .pad-label { position: absolute; bottom: 5px; right: 5px; font-size: 0.6rem; opacity: 0.5; font-weight: 100; pointer-events: none; text-shadow: 0 0 2px black; transition: color 0.3s; }
+
+        /* 4. スマホ用 フッター */
+        #mobile-footer { flex: 0 0 auto; display: flex; align-items: center; justify-content: center; gap: 30px; padding-top: 15px; padding-bottom: max(20px, env(safe-area-inset-bottom)); width: 100%; z-index: 40; background: #111; }
+        
+        .control-btn { border: 1px solid var(--text-color); padding: 8px 25px; font-size: 0.85rem; letter-spacing: 0.1em; color: var(--text-color); background: transparent; cursor: pointer; transition: all 0.2s; opacity: 0.6; border-radius: 20px; text-align: center; min-width: 80px; font-weight: bold; white-space: nowrap; overflow: hidden; }
+        .control-btn.active { background: var(--text-color); color: var(--bg-color); opacity: 1; box-shadow: 0 0 10px rgba(255,255,255,0.3); }
+        #fx-btn-pc.active, #fx-btn-mobile.active { background: var(--fx-active-color); border-color: var(--fx-active-color); color: #000; box-shadow: 0 0 15px var(--fx-active-color); }
+
+        /* 5. PC等大画面時のレイアウト (最強のスライド2カラム) */
+        #right-col { display: none; }
+
+        @media (min-width: 800px) {
+            body { flex-direction: row; padding-top: 60px; justify-content: center; }
+            
+            #top-nav { position: absolute; top: 0; left: 0; width: 100%; padding: 0 40px; height: 60px; background: none; border:none; justify-content: flex-start; z-index: 100; }
+            .feed-tabs { flex: 0 0 auto; gap: 10px; width: auto; }
+            .feed-tab { width: 50px; padding: 0;}
+            #menu-btn { position: absolute; right: 40px; padding: 0; width: 50px;}
+
+            /* 【統合】 アニメーション設定 (Code 2の全カラム同調アニメーションを採用) */
+            #header-panel, #center-col, #right-col { transition: all 0.4s cubic-bezier(0.2, 0.8, 0.2, 1); }
+
+            /* 【左】 ヘッダーパネル (展開メニュー) */
+            body[data-active-tab="main"] #header-panel { width: 0; flex: 0 0 0; opacity: 0; border: none; padding: 0; margin: 0; }
+            body:not([data-active-tab="main"]) #header-panel { width: var(--pc-panel-width); flex: 0 0 var(--pc-panel-width); opacity: 1; border-right: 1px solid #333; height: calc(100dvh - 60px) !important; max-height: none !important; top: 0; background: transparent; }
+            
+            /* 【中央】 パッド領域 */
+            #center-col { flex: 1 1 auto; height: calc(100dvh - 60px); padding: 20px; margin: 0; }
+            #mobile-footer { display: none !important; }
+            
+            /* 【右】 FXコントロール領域 */
+            /* 【統合】 Code 2の「潰れない・自然に消える」レイアウトを採用 */
+            #right-col { 
+                display: flex; flex-direction: column; align-items: center; justify-content: center; 
+                height: calc(100dvh - 60px); z-index: 10; overflow: hidden; box-sizing: border-box;
+            }
+            
+            /* 消えるときのアニメーション（幅と余白を同時に0にする自然なフェード） */
+            body[data-active-tab="main"] #right-col { 
+                flex: 0 0 320px; width: 320px; opacity: 1; padding: 0 20px; margin-right: 20px; gap: 20px;
+            }
+            body:not([data-active-tab="main"]) #right-col { 
+                flex: 0 0 0; width: 0; opacity: 0; padding: 0; margin-right: 0; gap: 20px; 
+            }
+            
+            #pc-controls-container { display: flex; gap: 15px; width: var(--pc-fx-width); justify-content: space-between; overflow: hidden; white-space: nowrap; box-sizing: border-box; }
+            #pc-controls-container .control-btn { flex: 1; padding: 8px 0; text-align: center; }
+        }
+
+        /* FXパッド */
+        #fx-pad-pc { 
+            width: 100%; max-width: var(--pc-fx-width); aspect-ratio: 1 / 1; border: 1px solid rgba(255,255,255,0.3); border-radius: 4px; position: relative; overflow: hidden; cursor: crosshair; background: linear-gradient(rgba(255,255,255,0.05) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.05) 1px, transparent 1px); background-size: 24px 24px; touch-action: none; flex-shrink: 0;
+            box-sizing: border-box; /* 枠線によるはみ出し防止 */
+        }
+        #fx-pad-pc::before { content: "Y: FILTER"; position: absolute; top: 10px; left: 10px; font-size: 0.6rem; opacity: 0.3; pointer-events: none; letter-spacing: 0.1em; writing-mode: vertical-rl; }
+        #fx-pad-pc::after { content: "X: REVERB"; position: absolute; bottom: 10px; right: 10px; font-size: 0.6rem; opacity: 0.3; pointer-events: none; letter-spacing: 0.1em; }
+        #fx-pad-pc.active { box-shadow: 0 0 20px var(--fx-active-color); border-color: var(--fx-active-color); }
+
+        /* モードバナー系 */
+        #mode-banner { position: absolute; top: calc(max(env(safe-area-inset-top), 10px) + 60px); left: 50%; transform: translateX(-50%) translateY(-100%); padding: 8px 20px; border-radius: 20px; font-size: 0.8rem; font-weight: bold; letter-spacing: 0.1em; color: #000; z-index: 70; opacity: 0; transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275); display: flex; align-items: center; gap: 10px; pointer-events: none; cursor: pointer; }
+        #mode-banner.show { transform: translateX(-50%) translateY(10px); opacity: 1; pointer-events: auto; }
+        #mode-banner.edit { background: var(--edit-color); box-shadow: 0 0 15px rgba(255,51,102,0.5); }
+        #mode-banner.spoid { background: var(--spoid-color); box-shadow: 0 0 15px rgba(255,170,0,0.5); }
+        #mode-banner.paste { background: var(--paste-color); box-shadow: 0 0 15px rgba(0,255,170,0.5); }
+        .mode-cancel-btn { background: rgba(0,0,0,0.2); border-radius: 50%; width: 20px; height: 20px; display: flex; justify-content: center; align-items: center; font-size: 0.8rem; }
+
+        /* モーダル系 */
+        .modal-overlay { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.85); backdrop-filter: blur(5px); z-index: 3000; justify-content: center; align-items: center; padding: 20px; box-sizing: border-box; opacity: 0; transition: opacity 0.3s; }
+        .modal-overlay.show { display: flex; opacity: 1; }
+        .modal-content { background: #1a1a1a; border: 1px solid #333; border-radius: 12px; width: 100%; max-width: 360px; max-height: 85dvh; overflow-y: auto; padding: 30px 25px; position: relative; color: #eee; box-shadow: 0 10px 30px rgba(0,0,0,0.8); }
+        .modal-close { position: absolute; top: 15px; right: 20px; font-size: 1.5rem; cursor: pointer; color: #666; transition: color 0.2s; line-height: 1; }
+        .modal-close:active { color: #fff; }
+        .modal-section { margin-bottom: 25px; }
+        .modal-section:last-child { margin-bottom: 0; }
+        .modal-section h3 { font-size: 0.8rem; color: #888; margin: 0 0 10px 0; letter-spacing: 0.1em; font-weight: 300; border-bottom: 1px solid #333; padding-bottom: 5px; }
+        .modal-menu-item { display: flex; align-items: center; justify-content: space-between; padding: 12px 0; border-bottom: 1px solid rgba(255,255,255,0.05); cursor: pointer; color: #fff; text-decoration: none; transition: background 0.2s; }
+        .modal-menu-item:active { background: rgba(255,255,255,0.05); }
+        .modal-menu-item span { font-size: 0.95rem; letter-spacing: 0.05em; display: flex; align-items: center; gap: 8px;}
+        .modal-menu-item .icon { color: #666; font-size: 0.8rem; }
+        .modal-menu-item.disabled { opacity: 0.4; cursor: not-allowed; } 
+        .modal-menu-item.pro { color: var(--fx-active-color); }
+        .modal-menu-item.google-login { background: #fff; color: #000; border-radius: 6px; padding: 12px; justify-content: center; margin-bottom: 10px; font-weight: bold; }
+        .modal-menu-item.danger { color: var(--danger-color); }
+        #user-profile-info { font-size: 0.75rem; color: var(--fx-active-color); margin-bottom: 15px; text-align: center; }
+
+        /* Lite Edit フォーム用 */
+        .form-group { margin-bottom: 15px; }
+        .form-group label { display: block; font-size: 0.75rem; color: #888; margin-bottom: 5px; }
+        .modal-input { background: #111; border: 1px solid #444; color: #fff; padding: 10px; border-radius: 6px; width: 100%; box-sizing: border-box; font-size: 0.9rem; }
+        .modal-input:focus { outline: none; border-color: var(--edit-color); }
+        .checkbox-label { display: flex; align-items: center; gap: 8px; font-size: 0.85rem; color: #eee; margin-bottom: 8px; cursor: pointer; }
+        .btn-file-upload { display: flex; justify-content: center; align-items: center; background: rgba(255,51,102,0.1); border: 1px dashed var(--edit-color); color: var(--edit-color); padding: 15px; border-radius: 6px; cursor: pointer; font-weight: bold; transition: all 0.2s; position: relative; overflow: hidden; }
+        .btn-file-upload:active { background: rgba(255,51,102,0.3); }
+        .btn-file-upload input[type="file"] { position: absolute; top: 0; left: 0; width: 100%; height: 100%; opacity: 0; cursor: pointer; }
+
+        #loading-indicator { position: absolute; font-size: 0.8rem; letter-spacing: 0.2em; opacity: 0.7; animation: blink 1.5s infinite; top: 50%; left: 50%; transform: translate(-50%, -50%); pointer-events: none; z-index: 9999; }
+        @keyframes blink { 0%, 100% { opacity: 0.3; } 50% { opacity: 1; } }
+    </style>
+</head>
+<body data-active-tab="main">
+    <div id="loading-indicator">SYSTEM BOOT...</div>
+
+    <div id="top-nav">
+        <div class="feed-tabs">
+            <div class="feed-tab active" onclick="switchNavTab('main')" title="MAIN (FX)">
+                <svg viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" fill="none"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>
+            </div>
+            <div class="feed-tab" onclick="switchNavTab('mix')" title="MIX">
+                <svg viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" fill="none"><line x1="4" y1="21" x2="4" y2="14"></line><line x1="4" y1="10" x2="4" y2="3"></line><line x1="12" y1="21" x2="12" y2="12"></line><line x1="12" y1="8" x2="12" y2="3"></line><line x1="20" y1="21" x2="20" y2="16"></line><line x1="20" y1="12" x2="20" y2="3"></line><line x1="1" y1="14" x2="7" y2="14"></line><line x1="9" y1="8" x2="15" y2="8"></line><line x1="17" y1="16" x2="23" y2="16"></line></svg>
+            </div>
+            <div class="feed-tab" onclick="switchNavTab('edit')" title="EDIT">
+                <svg viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" fill="none"><circle cx="6" cy="6" r="3"></circle><circle cx="6" cy="18" r="3"></circle><line x1="20" y1="4" x2="8.12" y2="15.88"></line><line x1="14.47" y1="14.48" x2="20" y2="20"></line><line x1="8.12" y1="8.12" x2="12" y2="12"></line></svg>
+            </div>
+            <div class="feed-tab" onclick="switchNavTab('library')" title="LIBRARY">
+                <svg viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" fill="none"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"></path><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"></path></svg>
+            </div>
+            <div class="feed-tab" onclick="switchNavTab('gather')" title="GATHER">
+                <svg viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" fill="none"><circle cx="12" cy="12" r="10"></circle><line x1="2" y1="12" x2="22" y2="12"></line><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"></path></svg>
+            </div>
+        </div>
+        <div id="menu-btn" onclick="openModal('main-menu-overlay')">
+            <svg viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" fill="none"><line x1="3" y1="12" x2="21" y2="12"></line><line x1="3" y1="6" x2="21" y2="6"></line><line x1="3" y1="18" x2="21" y2="18"></line></svg>
+        </div>
+    </div>
+
+    <div id="header-panel">
+        <div id="view-main" class="panel-view show">
+            <div id="mobile-fx-zone"><div id="mobile-fx-cursor" class="fx-cursor"></div></div>
+        </div>
+
+        <div id="view-mix" class="panel-view">
+            <div class="list-header-row">
+                <span class="list-title">MIXER</span>
+            </div>
+            <div class="mockup-center"><div class="mockup-text">🎚️ MIXER (WIP)<br><span style="font-size:0.6rem;">Master Vol & Pan sliders will be here.</span></div></div>
+        </div>
+
+        <div id="view-edit" class="panel-view">
+            <div class="list-header-row">
+                <span class="list-title">EDIT PAD</span>
+            </div>
+            <div class="mockup-center">
+                <div class="edit-panel-mock">
+                    <div>
+                        <span style="font-size:0.6rem; color:var(--fx-active-color); font-weight:bold;">CURRENT PAD</span><br>
+                        <span id="mock-current-label" style="font-size:0.9rem; color:#fff;">Tap a pad...</span>
+                    </div>
+                    <button class="edit-btn-mock" onclick="handleRibbonEditClick()">EDIT</button>
+                </div>
+            </div>
+        </div>
+
+        <div id="view-library" class="panel-view">
+            <div class="list-header-row">
+                <span class="list-title">LIBRARY</span>
+                <div class="list-category-tabs">
+                    <div class="cat-tab active">Saved Sets</div>
+                    <div class="cat-tab">Saved Sounds</div>
+                    <div class="cat-tab">Following</div>
+                    <div class="cat-tab">History</div>
+                </div>
+            </div>
+            <div id="library-list" class="list-container"></div>
+        </div>
+
+        <div id="view-gather" class="panel-view">
+            <div class="list-header-row">
+                <span class="list-title">GATHER</span>
+                <div class="list-category-tabs">
+                    <div class="cat-tab active">Latest</div>
+                    <div class="cat-tab">Random</div>
+                    <div class="cat-tab">#Ambient</div>
+                    <div class="cat-tab">#Beat</div>
+                </div>
+            </div>
+            <div id="gather-list" class="list-container"></div>
+        </div>
+    </div>
+
+    <div id="center-col">
+        <div id="sampler-wrapper"><div id="sampler-container"></div></div>
+    </div>
+
+    <div id="right-col">
+        <div id="fx-pad-pc"><div id="pc-fx-cursor" class="fx-cursor"></div></div>
+        <div id="pc-controls-container">
+            <div id="hold-btn-pc" class="control-btn">HOLD (H)</div>
+            <div id="fx-btn-pc" class="control-btn" onclick="toggleFxMode()">FX (Ent)</div>
+        </div>
+    </div>
+
+    <div id="mobile-footer">
+        <div id="hold-btn-mobile" class="control-btn">HOLD</div>
+        <div id="fx-btn-mobile" class="control-btn" onclick="toggleFxMode()">FX</div>
+    </div>
+
+    <div id="mode-banner" onclick="cancelMode()">
+        <span id="mode-banner-text">EDIT MODE</span>
+        <div class="mode-cancel-btn">×</div>
+    </div>
+
+    <div id="main-menu-overlay" class="modal-overlay" onclick="closeModal('main-menu-overlay')">
+        <div class="modal-content" onclick="event.stopPropagation()">
+            <span class="modal-close" onclick="closeModal('main-menu-overlay')">×</span>
+            <div id="user-profile-info"></div>
+            <div class="modal-section" id="dynamic-menu-container"></div>
+            <div class="modal-section" style="margin-top: 40px;">
+                <h3>HOW TO PLAY</h3>
+                <p style="font-size: 0.8rem; color: #aaa;">16個のパッドをタップして音を奏でます。<br><b>HOLD:</b> ループ音源の再生を維持します。</p>
+            </div>
+        </div>
+    </div>
+
+    <div id="pad-edit-overlay" class="modal-overlay" onclick="closeModal('pad-edit-overlay')">
+        <div class="modal-content" onclick="event.stopPropagation()">
+            <span class="modal-close" onclick="closeModal('pad-edit-overlay')">×</span>
+            <div class="modal-section">
+                <h3 id="modal-edit-title">EDIT PAD</h3>
+                <div class="form-group" style="margin-top: 15px;">
+                    <label class="btn-file-upload" id="upload-btn-label">
+                        📁 音源ファイルを選択
+                        <input type="file" id="modal-file-input" accept=".mp3, audio/mpeg, .wav, audio/wav, .m4a, audio/mp4, .aac, audio/aac">
+                    </label>
+                    <div id="modal-file-name" style="font-size: 0.7rem; color: #888; margin-top: 5px; word-break: break-all;">No file selected</div>
+                </div>
+                <div class="form-group">
+                    <label>Label</label>
+                    <input type="text" id="modal-edit-label" class="modal-input" placeholder="パッドの表示名">
+                </div>
+                <div class="form-group">
+                    <label>Mode</label>
+                    <select id="modal-edit-mode" class="modal-input">
+                        <option value="gate">Gate (指を離すと止まる)</option>
+                        <option value="oneshot">OneShot (最後まで鳴り切る)</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label class="checkbox-label"><input type="checkbox" id="modal-edit-loop"> Loop Playback</label>
+                    <label class="checkbox-label"><input type="checkbox" id="modal-edit-fadeIn"> Fade In (クリック音防止)</label>
+                    <label class="checkbox-label"><input type="checkbox" id="modal-edit-random"> Random Start (ループ用)</label>
+                </div>
+                <div style="display:flex; flex-direction:column; gap:10px; margin-top:25px;">
+                    <button class="control-btn" style="width:100%; opacity:1; background:#fff; color:#000;" onclick="savePadEdit()">✓ 完了 (Save)</button>
+                    <button class="control-btn" style="width:100%; border-color:var(--danger-color); color:var(--danger-color);" onclick="clearPadEdit()">🗑️ このパッドをクリア</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
+        import { getAuth, signInWithPopup, GoogleAuthProvider, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
+        import { getFirestore, collection, getDocs, doc, updateDoc, query, where } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+        import { getStorage, ref, uploadBytes, getDownloadURL } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-storage.js";
+        
+        const firebaseConfig = { apiKey: "AIzaSyC0yzzu9f6PM0zfnr463jRdsRrXpkqP-YA", authDomain: "solosola-v4.firebaseapp.com", projectId: "solosola-v4", storageBucket: "solosola-v4.firebasestorage.app", messagingSenderId: "937332002715", appId: "1:937332002715:web:17d4933814874b2d7adb3e" };
+        const app = initializeApp(firebaseConfig);
+        const auth = getAuth(app);
+        const db = getFirestore(app);
+        const storage = getStorage(app);
+
+        let SYSTEM_DATA = { sets: {} };
+        let currentSetKey = null;
+        let currentUser = null; 
+        let currentPadId = null;
+
+        // 座標のグローバル状態（両方のパッドで同期させるため）
+        let currentFxX = 0.5;
+        let currentFxY = 0.5;
+
+        let audioContext;
+        let audioBuffers = new Array(16);
+        const playingNodes = {};
+        const pressedKeys = new Set();
+        let isHoldMode = false, isFxMode = false;
+        let masterFilterNode, masterReverbNode, masterReverbGain, masterDryGain, masterCompressor;
+        const keyMap = ['1','2','3','4', 'q','w','e','r', 'a','s','d','f', 'z','x','c','v'];
+        
+        let appMode = 'PLAY'; 
+        let targetEditPadId = null;
+        let spoidedSampleData = null; 
+        let tempEditingSample = null;
+        
+        const silentWav = "data:audio/wav;base64,UklGRigAAABXQVZFZm10IBIAAAABAAEARKwAAIhYAQACABAAAABkYXRhAgAAAAEA";
+        let stayAliveAudio = new Audio(silentWav); stayAliveAudio.loop = true; stayAliveAudio.volume = 0.01;
+        let isAudioEngineInitialized = false;
+
+        window.addEventListener('contextmenu', e => e.preventDefault(), { passive: false });
+
+        function initAudioEngine() {
+            if (isAudioEngineInitialized) return;
+            isAudioEngineInitialized = true;
+            if ('audioSession' in navigator) { try { navigator.audioSession.type = 'playback'; } catch(e){} }
+            stayAliveAudio.play().catch(e => {});
+            if ('mediaSession' in navigator) { navigator.mediaSession.playbackState = 'playing'; }
+        }
+
+        function unlockAudioContextMaster(e) {
+            if (!audioContext) initAudioContext();
+            if (audioContext && audioContext.state === 'suspended') audioContext.resume();
+            if (!isAudioEngineInitialized) initAudioEngine(); 
+        }
+
+        ['touchstart', 'touchend', 'mousedown', 'click'].forEach(evt => {
+            document.addEventListener(evt, unlockAudioContextMaster, { capture: true, passive: true });
+        });
+
+        document.addEventListener('visibilitychange', () => {
+            if (document.visibilityState === 'visible') {
+                if (audioContext) {
+                    let lastTime = audioContext.currentTime;
+                    setTimeout(() => {
+                        if (audioContext.currentTime === lastTime) {
+                            audioContext.close().then(() => {
+                                audioContext = new (window.AudioContext || window.webkitAudioContext)();
+                                setupMasterFX(); preloadAllSamples(); 
+                            });
+                        } else if (audioContext.state === 'suspended') { audioContext.resume(); }
+                    }, 50);
+                }
+                if ('mediaSession' in navigator) navigator.mediaSession.playbackState = 'playing';
+                stayAliveAudio.play().catch(e=>{});
+            }
+        });
+
+        onAuthStateChanged(auth, (user) => { currentUser = user; renderDynamicMenu(); renderLists(); });
+        window.handleGoogleLogin = function() { signInWithPopup(auth, new GoogleAuthProvider()).catch(err => { alert("Login Failed"); }); };
+        window.handleGoogleLogout = function() { signOut(auth).then(() => { alert("Logged out"); closeModal('main-menu-overlay'); }); };
+
+        window.switchNavTab = function(tabName) {
+            document.body.dataset.activeTab = tabName;
+            document.querySelectorAll('.feed-tab').forEach(t => t.classList.remove('active'));
+            event.currentTarget.classList.add('active');
+
+            document.querySelectorAll('.panel-view').forEach(v => v.classList.remove('show'));
+            document.getElementById(`view-${tabName}`).classList.add('show');
+            
+            if(tabName === 'edit') updateMockEditPanel();
+            if(tabName === 'main') syncFxCursors();
+        };
+
+        function updateMockEditPanel() {
+            const labelEl = document.getElementById('mock-current-label');
+            if(currentPadId === null) { labelEl.innerText = "Tap a pad..."; return; }
+            const sampleData = SYSTEM_DATA.sets[currentSetKey].samples.find(s => s.id == currentPadId);
+            labelEl.innerText = sampleData && sampleData.label ? `Pad ${currentPadId}: ${sampleData.label}` : `Pad ${currentPadId}: (Empty)`;
+        }
+
+        function renderLists() {
+            const generateHTML = (filterFn) => {
+                let html = '';
+                Object.keys(SYSTEM_DATA.sets).filter(filterFn).forEach(key => {
+                    const s = SYSTEM_DATA.sets[key];
+                    const activeClass = key === currentSetKey ? 'active' : '';
+                    const mainBadge = s.isMain ? `<span class="badge-main">MAIN</span>` : '';
+                    html += `<div class="feed-list-item ${activeClass}" onclick="selectSetFromList('${key}')">
+                        <div class="feed-list-title">${s.name} ${mainBadge}</div>
+                        <div class="feed-list-sub">by ${s.recorder || 'Unknown'}</div>
+                    </div>`;
+                });
+                return html || '<div style="padding:20px; color:#666; font-size:0.8rem; text-align:center;">No sets found.</div>';
+            };
+
+            const libEl = document.getElementById('library-list');
+            if(libEl) libEl.innerHTML = generateHTML(() => true);
+
+            const gatherEl = document.getElementById('gather-list');
+            if(gatherEl) gatherEl.innerHTML = generateHTML(() => true);
+        }
+
+        window.selectSetFromList = function(key) {
+            changeSamplerSet(key);
+        };
+
+        function renderDynamicMenu() {
+            const container = document.getElementById('dynamic-menu-container');
+            const profileInfo = document.getElementById('user-profile-info');
+            container.innerHTML = '<h3>MENU</h3>';
+            
+            const currentSetData = SYSTEM_DATA.sets[currentSetKey];
+            const isMySet = currentUser && currentSetData && currentSetData.ownerId === currentUser.uid;
+
+            if (currentUser) {
+                profileInfo.innerText = `Logged in as: ${currentUser.email}`;
+            } else {
+                profileInfo.innerText = '';
+                container.innerHTML += `<div class="modal-menu-item google-login" onclick="handleGoogleLogin()"><span style="color:#4285F4;">G</span> Login with Google</div>`;
+            }
+
+            if (isMySet) {
+                container.innerHTML += `<div class="modal-menu-item" onclick="enterMode('EDIT')"><span>音を追加・編集 (Lite Edit)</span><span class="icon">▶</span></div>`;
+            } else if (currentUser && currentSetData) {
+                container.innerHTML += `<div class="modal-menu-item pro" onclick="enterMode('SPOID')"><span>このセットから音をコピー (Resample)</span><span class="icon">▶</span></div>`;
+            }
+
+            container.innerHTML += `<div class="modal-menu-item" onclick="copyShareUrl()"><span id="share-btn-text">Share This Set</span><span class="icon">▶</span></div>
+            <a href="./editor_v4.html" target="_blank" rel="noopener noreferrer" class="modal-menu-item pro"><span>高度な編集 (Studio Proへ)</span><span class="icon">↗</span></a>`;
+            if (currentUser) container.innerHTML += `<div class="modal-menu-item danger" onclick="handleGoogleLogout()" style="margin-top:20px;"><span>Logout</span><span class="icon">▶</span></div>`;
+        }
+
+        window.cancelMode = function() { appMode = 'PLAY'; document.getElementById('mode-banner').className = ''; };
+        window.openModal = function(id) { const overlay = document.getElementById(id); overlay.style.display = 'flex'; setTimeout(() => overlay.classList.add('show'), 10); };
+        window.closeModal = function(id) { const overlay = document.getElementById(id); overlay.classList.remove('show'); setTimeout(() => overlay.style.display = 'none', 300); };
+        window.copyShareUrl = function() { navigator.clipboard.writeText(window.location.href).then(() => { const textSpan = document.getElementById('share-btn-text'); const originalText = textSpan.innerText; textSpan.innerText = "COPIED!"; textSpan.style.color = "var(--success-color)"; setTimeout(() => { textSpan.innerText = originalText; textSpan.style.color = "#fff"; }, 2000); }); };
+
+        window.enterMode = function(mode) {
+            appMode = mode; closeModal('main-menu-overlay');
+            const wrapper = document.getElementById('sampler-wrapper');
+            const banner = document.getElementById('mode-banner');
+            const bannerText = document.getElementById('mode-banner-text');
+            wrapper.className = ''; banner.className = '';
+            if (mode === 'EDIT') { wrapper.classList.add('mode-edit'); banner.classList.add('show', 'edit'); bannerText.innerText = 'EDIT: 編集するパッドをタップ'; } 
+            else if (mode === 'SPOID') { wrapper.classList.add('mode-spoid'); banner.classList.add('show', 'spoid'); bannerText.innerText = 'SPOID: コピーする音をタップ'; } 
+            else if (mode === 'PASTE') { wrapper.classList.add('mode-paste'); banner.classList.add('show', 'paste'); bannerText.innerText = 'PASTE: 上書きするパッドをタップ'; }
+        };
+
+        window.handleRibbonEditClick = function() {
+            if (currentPadId === null) { alert("Please tap a pad first."); return; }
+            const currentSetData = SYSTEM_DATA.sets[currentSetKey];
+            if (!currentUser || currentSetData.ownerId !== currentUser.uid) { alert("自分のセットでのみ編集可能です。"); return; }
+            appMode = 'EDIT'; targetEditPadId = currentPadId; 
+            openPadEditModal(currentPadId);
+        };
+
+        async function processModeClick(id) {
+            if (appMode === 'EDIT') { targetEditPadId = id; openPadEditModal(id); return true; }
+            if (appMode === 'SPOID') {
+                const sampleData = SYSTEM_DATA.sets[currentSetKey].samples.find(s => s.id == id);
+                if (!sampleData || !sampleData.url) { alert("このパッドには音がありません。"); return true; }
+                spoidedSampleData = JSON.parse(JSON.stringify(sampleData));
+                triggerSample(id); 
+                alert("音をコピーしました。\nペースト先の自分のセットを選択してください。");
+                document.querySelectorAll('.feed-tab')[3].click(); // LIBRARYへ
+                return true;
+            }
+            if (appMode === 'PASTE') {
+                if (!spoidedSampleData) { cancelMode(); return true; }
+                if (confirm(`このパッドに音を上書きペーストしますか？`)) {
+                    document.getElementById('loading-indicator').style.display = 'block';
+                    try {
+                        const currentSetData = SYSTEM_DATA.sets[currentSetKey];
+                        const newSamples = [...currentSetData.samples];
+                        const index = newSamples.findIndex(s => s.id == id);
+                        spoidedSampleData.id = parseInt(id);
+                        if (index !== -1) newSamples[index] = spoidedSampleData; else newSamples.push(spoidedSampleData);
+                        await updateDoc(doc(db, "sets", currentSetKey), { samples: newSamples });
+                        SYSTEM_DATA.sets[currentSetKey].samples = newSamples;
+                        await preloadSingleSample(spoidedSampleData);
+                        renderPads(SYSTEM_DATA.sets[currentSetKey]);
+                        cancelMode();
+                    } catch (e) { alert("エラーが発生しました: " + e.message); } 
+                    finally { document.getElementById('loading-indicator').style.display = 'none'; }
+                }
+                return true;
+            }
+            return false;
+        }
+
+        function openPadEditModal(id) {
+            const currentSetData = SYSTEM_DATA.sets[currentSetKey];
+            const sample = currentSetData.samples.find(s => s.id == id) || { id: parseInt(id), mode: 'gate', loop: false, url: "", label: "" };
+            tempEditingSample = JSON.parse(JSON.stringify(sample));
+            document.getElementById('modal-edit-title').innerText = `EDIT PAD ${id}`;
+            document.getElementById('modal-edit-label').value = tempEditingSample.label || '';
+            document.getElementById('modal-edit-mode').value = tempEditingSample.mode || 'gate';
+            document.getElementById('modal-edit-loop').checked = !!tempEditingSample.loop;
+            document.getElementById('modal-edit-fadeIn').checked = !!tempEditingSample.fadeIn;
+            document.getElementById('modal-edit-random').checked = !!tempEditingSample.randomStart;
+            document.getElementById('modal-file-name').innerText = tempEditingSample.url ? "✅ 音源設定済み" : "No file selected";
+            document.getElementById('modal-file-input').value = '';
+            openModal('pad-edit-overlay');
+        }
+
+        async function convertToMP3Blob(file) {
+            return new Promise(async (resolve, reject) => {
+                try {
+                    checkAudioContext(); if (!audioContext) initAudioContext();
+                    const arrayBuffer = await file.arrayBuffer();
+                    const audioBuf = await audioContext.decodeAudioData(arrayBuffer);
+                    const channels = audioBuf.numberOfChannels; const sampleRate = audioBuf.sampleRate;
+                    const mp3encoder = new window.lamejs.Mp3Encoder(channels, sampleRate, 128); 
+                    const mp3Data = []; const sampleBlockSize = 1152;
+                    const left = audioBuf.getChannelData(0); const right = channels > 1 ? audioBuf.getChannelData(1) : left;
+                    const leftInt16 = new Int16Array(left.length); const rightInt16 = new Int16Array(right.length);
+                    for (let i = 0; i < left.length; i++) {
+                        leftInt16[i] = Math.max(-32768, Math.min(32767, left[i] * 32768));
+                        if (channels > 1) { rightInt16[i] = Math.max(-32768, Math.min(32767, right[i] * 32768)); }
+                    }
+                    for (let i = 0; i < leftInt16.length; i += sampleBlockSize) {
+                        const leftChunk = leftInt16.subarray(i, i + sampleBlockSize);
+                        let mp3buf;
+                        if (channels > 1) { const rightChunk = rightInt16.subarray(i, i + sampleBlockSize); mp3buf = mp3encoder.encodeBuffer(leftChunk, rightChunk); } 
+                        else { mp3buf = mp3encoder.encodeBuffer(leftChunk); }
+                        if (mp3buf.length > 0) mp3Data.push(mp3buf);
+                    }
+                    const mp3buf = mp3encoder.flush(); if (mp3buf.length > 0) mp3Data.push(mp3buf);
+                    resolve(new Blob(mp3Data, { type: 'audio/mp3' }));
+                } catch (e) { reject(e); }
+            });
+        }
+
+        document.getElementById('modal-file-input').addEventListener('change', async (e) => {
+            const file = e.target.files[0];
+            if (!file || targetEditPadId === null || !currentUser) return;
+            const uploadBtnLabel = document.getElementById('upload-btn-label');
+            const originalText = uploadBtnLabel.innerHTML;
+            uploadBtnLabel.innerHTML = '⚙️ Converting & Uploading...'; uploadBtnLabel.style.pointerEvents = 'none';
+            try {
+                const mp3Blob = await convertToMP3Blob(file);
+                const originalNameBase = file.name.replace(/\.[^/.]+$/, ""); const newFileName = `${originalNameBase}.mp3`;
+                const storageRef = ref(storage, `users/${currentUser.uid}/${currentSetKey}/${Date.now()}_${newFileName}`);
+                await uploadBytes(storageRef, mp3Blob);
+                const downloadURL = await getDownloadURL(storageRef);
+                tempEditingSample.url = downloadURL;
+                document.getElementById('modal-file-name').innerText = newFileName + " (Converted)";
+                const cleanName = originalNameBase.substring(0, 15);
+                document.getElementById('modal-edit-label').value = cleanName; tempEditingSample.label = cleanName;
+            } catch (error) { alert("Upload Failed: " + error.message); } 
+            finally { uploadBtnLabel.innerHTML = originalText; uploadBtnLabel.style.pointerEvents = 'auto'; }
+        });
+
+        window.savePadEdit = async function() {
+            if (!tempEditingSample) return;
+            tempEditingSample.label = document.getElementById('modal-edit-label').value;
+            tempEditingSample.mode = document.getElementById('modal-edit-mode').value;
+            tempEditingSample.loop = document.getElementById('modal-edit-loop').checked;
+            tempEditingSample.fadeIn = document.getElementById('modal-edit-fadeIn').checked;
+            tempEditingSample.randomStart = document.getElementById('modal-edit-random').checked;
+            document.getElementById('loading-indicator').style.display = 'block';
+            try {
+                const currentSetData = SYSTEM_DATA.sets[currentSetKey]; const newSamples = [...currentSetData.samples];
+                const index = newSamples.findIndex(s => s.id == targetEditPadId);
+                if (index !== -1) newSamples[index] = tempEditingSample; else newSamples.push(tempEditingSample);
+                await updateDoc(doc(db, "sets", currentSetKey), { samples: newSamples });
+                SYSTEM_DATA.sets[currentSetKey].samples = newSamples;
+                await preloadSingleSample(tempEditingSample); renderPads(SYSTEM_DATA.sets[currentSetKey]);
+                closeModal('pad-edit-overlay');
+                appMode = 'PLAY'; 
+            } catch (error) { alert("Save Error: " + error.message); } 
+            finally { document.getElementById('loading-indicator').style.display = 'none'; }
+        };
+
+        window.clearPadEdit = async function() {
+            if (!confirm("このパッドの音源を消去しますか？")) return;
+            tempEditingSample.url = ""; tempEditingSample.label = "";
+            document.getElementById('modal-edit-label').value = ""; document.getElementById('modal-file-name').innerText = "No file selected";
+            await savePadEdit();
+        };
+
+        async function preloadSingleSample(sample) {
+            if (!sample || !sample.url) return;
+            try {
+                const response = await fetch(sample.url); const buf = await response.arrayBuffer();
+                audioBuffers[sample.id] = await audioContext.decodeAudioData(buf);
+            } catch (e) { }
+        }
+
+        window.addEventListener('DOMContentLoaded', async () => { 
+            await loadCloudData(); 
+            setupHoldButtons();
+            
+            // 【統合】 確実に最大の正方形を描画し、見切れを防ぐための ResizeObserver を維持
+            const centerCol = document.getElementById('center-col');
+            const wrapper = document.getElementById('sampler-wrapper');
+            const ro = new ResizeObserver(entries => {
+                for (let entry of entries) {
+                    const { width, height } = entry.contentRect;
+                    // パッドの最大サイズを500pxとしつつ、親カラムの「短い方」に合わせて完全な正方形を計算する
+                    const size = Math.min(width, height, 500);
+                    wrapper.style.width = size + 'px';
+                    wrapper.style.height = size + 'px';
+                }
+            });
+            if(centerCol && wrapper) ro.observe(centerCol);
+        });
+
+        async function loadCloudData() {
+            try {
+                const q = collection(db, "sets"); const querySnapshot = await getDocs(q);
+                let defaultSetId = null;
+                if (!querySnapshot.empty) {
+                    querySnapshot.forEach((doc) => {
+                        const data = doc.data(); SYSTEM_DATA.sets[doc.id] = data;
+                        if (!defaultSetId) defaultSetId = doc.id;
+                    });
+                    if (defaultSetId) changeSamplerSet(defaultSetId);
+                }
+            } catch (error) { console.error(error); } 
+            finally { document.getElementById('loading-indicator').style.display = 'none'; renderLists(); renderDynamicMenu(); }
+        }
+
+        window.changeSamplerSet = async function(setKey) { 
+            if (!SYSTEM_DATA.sets[setKey]) return; 
+            if (!audioContext) initAudioContext(); 
+            stopAllSounds(true, true); 
+            currentSetKey = setKey; 
+            currentPadId = null; updateMockEditPanel();
+            
+            const newData = SYSTEM_DATA.sets[setKey]; 
+            audioBuffers = new Array(16);
+            
+            renderPads(newData); renderLists(); 
+            document.getElementById('sampler-wrapper').style.opacity = 0.5;
+            await preloadAllSamples(); 
+            document.getElementById('sampler-wrapper').style.opacity = 1;
+        }
+
+        function renderPads(setData) { 
+            const container = document.getElementById('sampler-container'); container.innerHTML = ''; 
+            for (let i = 0; i < 16; i++) { 
+                const sample = setData.samples.find(s => s.id === i) || { id: i, label: "" };
+                const pad = document.createElement('div'); pad.className = 'pad'; pad.id = `pad-${i}`; 
+                pad.dataset.id = i; pad.dataset.key = keyMap[i]; 
+                
+                if(setData.image) {
+                    const col = i % 4; const row = Math.floor(i / 4); 
+                    pad.style.backgroundImage = `url('${setData.image}')`; 
+                    pad.style.backgroundPosition = `${col*(100/3)}% ${row*(100/3)}%`; 
+                }
+                
+                const label = document.createElement('span'); label.className = 'pad-label'; label.textContent = sample.label; 
+                pad.appendChild(label); attachEvents(pad); container.appendChild(pad); 
+            } 
+        }
+
+        async function preloadAllSamples() {
+            const currentSetData = SYSTEM_DATA.sets[currentSetKey];
+            if (!currentSetData) return;
+            const loadPromises = currentSetData.samples.map(async (sample) => {
+                if (!sample || !sample.url) return;
+                try {
+                    const response = await fetch(sample.url); const buf = await response.arrayBuffer();
+                    audioBuffers[sample.id] = await audioContext.decodeAudioData(buf);
+                } catch (e) {}
+            });
+            await Promise.all(loadPromises);
+        }
+
+        function initAudioContext() { try { audioContext = new (window.AudioContext || window.webkitAudioContext)(); setupMasterFX(); } catch (e) {} }
+
+        function checkAudioContext() { 
+            if (!audioContext) { initAudioContext(); } 
+            else if (audioContext.state === 'closed') { audioContext = new (window.AudioContext || window.webkitAudioContext)(); setupMasterFX(); preloadAllSamples(); } 
+            else if (audioContext.state === 'suspended') { audioContext.resume(); }
+        }
+
+        function setupMasterFX() { 
+            masterFilterNode = audioContext.createBiquadFilter(); masterFilterNode.type = 'lowpass'; masterFilterNode.frequency.value = 20000; masterFilterNode.Q.value = 1; 
+            masterReverbNode = audioContext.createConvolver(); masterReverbNode.buffer = createReverbBuffer(2.0); 
+            masterDryGain = audioContext.createGain(); masterDryGain.gain.value = 1.0; 
+            masterReverbGain = audioContext.createGain(); masterReverbGain.gain.value = 0.0; 
+            masterCompressor = audioContext.createDynamicsCompressor();
+            masterCompressor.threshold.value = -10; masterCompressor.knee.value = 30; masterCompressor.ratio.value = 12; masterCompressor.attack.value = 0.003; masterCompressor.release.value = 0.25;
+            masterFilterNode.connect(masterDryGain); masterFilterNode.connect(masterReverbNode); 
+            masterReverbNode.connect(masterReverbGain); masterDryGain.connect(masterCompressor); masterReverbGain.connect(masterCompressor); 
+            masterCompressor.connect(audioContext.destination); 
+        }
+
+        function createReverbBuffer(duration) { 
+            const sampleRate = audioContext.sampleRate; const length = sampleRate * duration; const impulse = audioContext.createBuffer(2, length, sampleRate); 
+            for (let i = 0; i < length; i++) { const decay = Math.pow(1 - i / length, 2.0); impulse.getChannelData(0)[i] = (Math.random() * 2 - 1) * decay; impulse.getChannelData(1)[i] = (Math.random() * 2 - 1) * decay; } return impulse; 
+        }
+
+        function triggerSample(id) { 
+            currentPadId = id; 
+            updateMockEditPanel();
+
+            const sampleData = SYSTEM_DATA.sets[currentSetKey].samples.find(s => s.id == id); 
+            const buffer = audioBuffers[parseInt(id)]; 
+            
+            if (!buffer || !sampleData || !sampleData.url) { 
+                const padEl = document.getElementById(`pad-${id}`);
+                if (padEl) {
+                    const label = padEl.querySelector('.pad-label');
+                    if (label) {
+                        const origText = label.innerText; label.innerText = "EMPTY"; label.style.color = "var(--danger-color)";
+                        setTimeout(() => { label.innerText = origText; label.style.color = ""; }, 500);
+                    }
+                }
+                return false; 
+            } 
+            
+            if (playingNodes[id]) {
+                if (isHoldMode && sampleData.mode === 'gate') { stopSample(id, true); return false; } 
+                else { stopSample(id, true); }
+            }
+            
+            const source = audioContext.createBufferSource(); source.buffer = buffer; source.loop = sampleData.loop || false; 
+            const gainNode = audioContext.createGain(); 
+            source.connect(gainNode); gainNode.connect(masterFilterNode || audioContext.destination); 
+            const now = audioContext.currentTime; gainNode.gain.setValueAtTime(0, now); 
+            gainNode.gain.linearRampToValueAtTime(1, now + (sampleData.fadeIn ? 0.05 : 0.005)); 
+            let startOffset = 0; if (sampleData.loop && sampleData.randomStart && buffer.duration > 1.0) startOffset = Math.random() * 0.5; 
+            source.start(0, startOffset); 
+            playingNodes[id] = { source: source, gain: gainNode, startTime: now, bufferDuration: buffer.duration }; 
+            
+            const padEl = document.getElementById(`pad-${id}`);
+            clearTimeout(padEl.dataset.purifyTimer); padEl.classList.remove('purifying'); padEl.style.transition = ""; void padEl.offsetWidth; padEl.classList.add('active'); 
+            source.onended = () => { if (playingNodes[id] && playingNodes[id].source === source) { delete playingNodes[id]; padEl.classList.remove('active', 'purifying'); padEl.style.transition = ""; } }; 
+            return true; 
+        }
+
+        function stopSample(id, forceStop = false) { 
+            const node = playingNodes[id]; if (!node) return; 
+            const pad = document.getElementById(`pad-${id}`); 
+            const sampleData = SYSTEM_DATA.sets[currentSetKey].samples.find(s => s.id == id);
+            const now = audioContext.currentTime;
+            if (!forceStop) { if (isHoldMode) return; if (sampleData.mode === 'oneshot') return; }
+            pad.classList.remove('active'); clearTimeout(pad.dataset.purifyTimer); 
+            let releaseTime = 0.3; const pressDuration = now - node.startTime; const isPurifying = pad.classList.contains('purifying') || pressDuration > 0.4;
+            if (isPurifying) { releaseTime = 0.5 + Math.pow(pressDuration * 0.8, 1.2); if (releaseTime > 20) releaseTime = 20; }
+            try { node.gain.gain.cancelScheduledValues(now); node.gain.gain.setValueAtTime(node.gain.gain.value, now); node.gain.gain.exponentialRampToValueAtTime(0.001, now + releaseTime); node.source.stop(now + releaseTime); } catch(e) {}
+            pad.classList.remove('purifying'); 
+            if (isPurifying) pad.style.transition = `filter ${releaseTime}s cubic-bezier(0.1, 0.7, 0.1, 1), box-shadow ${releaseTime}s cubic-bezier(0.1, 0.7, 0.1, 1)`;
+            else pad.style.transition = ""; 
+            delete playingNodes[id]; 
+        }
+
+        function stopAllSounds(immediate = false, force = true) { 
+            Object.keys(playingNodes).forEach(id => { 
+                if (immediate) { 
+                    try { playingNodes[id].source.stop(0); } catch(e){} delete playingNodes[id]; 
+                    const pad = document.getElementById(`pad-${id}`); pad.classList.remove('active', 'purifying'); pad.style.transition = "";
+                } else { stopSample(id, force); } 
+            }); 
+        }
+
+        function attachEvents(pad) { 
+            let isTouch = false; const id = pad.dataset.id;
+            const start = async (e) => { 
+                if (e.type === 'touchstart') { isTouch = true; if (e.cancelable) e.preventDefault(); }
+                if (e.type === 'mousedown' && isTouch) return;
+                if (appMode !== 'PLAY') { await processModeClick(id); return; }
+                const started = triggerSample(id); 
+                if (started) {
+                    const sampleData = SYSTEM_DATA.sets[currentSetKey].samples.find(s => s.id == id);
+                    if (sampleData && sampleData.mode === 'gate') { pad.dataset.purifyTimer = setTimeout(() => { if (pad.classList.contains('active') || isHoldMode) pad.classList.add('purifying'); }, 400); }
+                }
+            }; 
+            const end = (e) => { 
+                if (e.type === 'touchend' || e.type === 'touchcancel') { if (e.cancelable) e.preventDefault(); }
+                if (e.type === 'mouseup' && isTouch) return;
+                if (appMode !== 'PLAY') return; 
+                stopSample(id); 
+            }; 
+            pad.addEventListener('mousedown', start); pad.addEventListener('touchstart', start, {passive:false});
+            pad.addEventListener('mouseup', end); pad.addEventListener('mouseleave', end);
+            pad.addEventListener('touchend', end, {passive:false}); pad.addEventListener('touchcancel', end, {passive:false});
+        }
+
+        function syncFxCursors() {
+            const mx = currentFxX * 100 + '%'; const my = currentFxY * 100 + '%';
+            const mCursor = document.getElementById('mobile-fx-cursor');
+            const pCursor = document.getElementById('pc-fx-cursor');
+            if(mCursor) { mCursor.style.left = mx; mCursor.style.top = my; if(isFxMode) mCursor.classList.add('active'); }
+            if(pCursor) { pCursor.style.left = mx; pCursor.style.top = my; if(isFxMode) pCursor.classList.add('active'); }
+        }
+
+        window.toggleFxMode = function() { 
+            isFxMode = !isFxMode; 
+            
+            const pcBtn = document.getElementById('fx-btn-pc'); if(pcBtn) isFxMode ? pcBtn.classList.add('active') : pcBtn.classList.remove('active');
+            const pcZone = document.getElementById('fx-pad-pc'); if(pcZone) isFxMode ? pcZone.classList.add('active') : pcZone.classList.remove('active');
+            
+            const mobileBtn = document.getElementById('fx-btn-mobile'); if(mobileBtn) isFxMode ? mobileBtn.classList.add('active') : mobileBtn.classList.remove('active');
+            const mobileZone = document.getElementById('mobile-fx-zone'); if(mobileZone) isFxMode ? mobileZone.classList.add('active-fx') : mobileZone.classList.remove('active-fx');
+
+            syncFxCursors(); 
+
+            if (isFxMode && window.innerWidth < 800) { switchNavTab('main'); }
+        };
+
+        window.addEventListener('keydown', e => {
+            if (e.metaKey||e.ctrlKey || appMode !== 'PLAY') return; 
+            if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
+            const k = e.key.toLowerCase();
+            
+            if (k === 'h') { e.preventDefault(); toggleHoldMode(); return; }
+            if (k === 'enter') { e.preventDefault(); toggleFxMode(); return; }
+            
+            const pad = document.querySelector(`.pad[data-key="${k}"]`);
+            if (pad && !pressedKeys.has(k)) { pressedKeys.add(k); pad.dispatchEvent(new Event('mousedown')); }
+        });
+        window.addEventListener('keyup', e => {
+            const k = e.key.toLowerCase();
+            const pad = document.querySelector(`.pad[data-key="${k}"]`);
+            if (pad) { pressedKeys.delete(k); pad.dispatchEvent(new Event('mouseup')); }
+        });
+
+        function setupHoldButtons() {
+            const btns = ['hold-btn-mobile', 'hold-btn-pc'];
+            btns.forEach(id => {
+                const btn = document.getElementById(id); if (!btn) return;
+                btn.addEventListener('touchstart', (e) => { e.preventDefault(); toggleHoldMode(); }, { passive: false });
+                btn.addEventListener('mousedown', (e) => { if (e.button === 0) toggleHoldMode(); }); 
+            });
+        }
+
+        window.toggleHoldMode = function() { 
+            isHoldMode = !isHoldMode; 
+            const b1 = document.getElementById('hold-btn-pc'); if(b1) isHoldMode ? b1.classList.add('active') : b1.classList.remove('active');
+            const b2 = document.getElementById('hold-btn-mobile'); if(b2) isHoldMode ? b2.classList.add('active') : b2.classList.remove('active');
+            if (!isHoldMode) stopAllSounds(false, false); 
+        };
+
+        function setupFx(zoneId, cursorId) {
+            const zone = document.getElementById(zoneId);
+            if(!zone) return;
+            const startFxInteraction = () => { if (!isFxMode) toggleFxMode(); };
+            const move = (cx, cy) => {
+                if(!isFxMode) return;
+                const rect = zone.getBoundingClientRect();
+                let x = (cx - rect.left) / rect.width; let y = (cy - rect.top) / rect.height;
+                x = Math.max(0, Math.min(1, x)); y = Math.max(0, Math.min(1, y));
+                
+                currentFxX = x; currentFxY = y;
+                syncFxCursors(); 
+                
+                updateFxParams(x, y); 
+            };
+
+            let isPointerDown = false;
+            zone.addEventListener('pointerdown', e => {
+                isPointerDown = true; startFxInteraction(); zone.setPointerCapture(e.pointerId); move(e.clientX, e.clientY);
+            });
+            zone.addEventListener('pointermove', e => { if (isPointerDown) move(e.clientX, e.clientY); });
+            zone.addEventListener('pointerup', e => { isPointerDown = false; zone.releasePointerCapture(e.pointerId); });
+            zone.addEventListener('pointercancel', e => { isPointerDown = false; });
+        }
+        setupFx('mobile-fx-zone', 'mobile-fx-cursor'); setupFx('fx-pad-pc', 'pc-fx-cursor');
+
+        function updateFxParams(x, y) {
+            if (!masterFilterNode) return;
+            const now = audioContext.currentTime;
+            const freq = 100 * Math.pow(20000/100, 1.0 - y); 
+            masterFilterNode.frequency.setTargetAtTime(freq, now, 0.1);
+            const wet = x;
+            masterReverbGain.gain.setTargetAtTime(wet * 3.0, now, 0.1);
+            masterDryGain.gain.setTargetAtTime(1.0 - (wet * 0.4), now, 0.1);
+        }
+    </script>
+</body>
+</html>
