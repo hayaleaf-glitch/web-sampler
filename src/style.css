@@ -654,7 +654,7 @@
             overflow: hidden;
             transition: all 0.3s;
             cursor: crosshair;
-            background: linear-gradient(rgba(255, 255, 255, 0.05) 1px, transparent 1px), linear-gradient(90deg, rgba(255, 255, 255, 0.05) 1px, transparent 1px);
+            background: linear-gradient(rgba(255, 255, 255, 0.15) 1px, transparent 1px), linear-gradient(90deg, rgba(255, 255, 255, 0.15) 1px, transparent 1px);
             background-size: 24px 24px;
             touch-action: none;
         }
@@ -713,8 +713,8 @@
             max-width: 500px;
             max-height: 500px;
             position: relative;
-            opacity: 0;
-            transition: opacity 1s;
+            opacity: 1; /* 初期値を1に変更（またはJSで制御） */
+            transition: opacity 0.5s;
             aspect-ratio: 1 / 1;
         }
 

@@ -218,5 +218,42 @@ export const AudioEngine = {
                 this.stopSample(id, force); 
             }
         });
+    },
+
+    async convertToMP3Blob(file) {
+        this.unlock(() => {
+            this.context = new (window.AudioContext || window.webkitAudioContext)();
+            this.setupMasterFX();
+        });
+        const arrayBuffer = await file.arrayBuffer();
+        const audioBuf = await this.context.decodeAudioData(arrayBuffer);
+        const channels = audioBuf.numberOfChannels;
+        const sampleRate = audioBuf.sampleRate;
+        const mp3encoder = new window.lamejs.Mp3Encoder(channels, sampleRate, 128);
+        const mp3Data = [];
+        const sampleBlockSize = 1152;
+        const left = audioBuf.getChannelData(0);
+        const right = channels > 1 ? audioBuf.getChannelData(1) : left;
+
+        const leftInt16 = new Int16Array(left.length);
+        const rightInt16 = new Int16Array(right.length);
+        for (let i = 0; i < left.length; i++) {
+            leftInt16[i] = Math.max(-32768, Math.min(32767, left[i] * 32768));
+            if (channels > 1) { rightInt16[i] = Math.max(-32768, Math.min(32767, right[i] * 32768)); }
+        }
+        for (let i = 0; i < leftInt16.length; i += sampleBlockSize) {
+            const leftChunk = leftInt16.subarray(i, i + sampleBlockSize);
+            let mp3buf;
+            if (channels > 1) { 
+                const rightChunk = rightInt16.subarray(i, i + sampleBlockSize); 
+                mp3buf = mp3encoder.encodeBuffer(leftChunk, rightChunk); 
+            } else { 
+                mp3buf = mp3encoder.encodeBuffer(leftChunk); 
+            }
+            if (mp3buf.length > 0) mp3Data.push(mp3buf);
+        }
+        const mp3buf = mp3encoder.flush();
+        if (mp3buf.length > 0) mp3Data.push(mp3buf);
+        return new Blob(mp3Data, { type: 'audio/mp3' });
     }
 };
